@@ -1,15 +1,13 @@
 import './App.css'
-import 'landingPage' from 'landingPage.tsx'
+import LandingPage from './pages/Home'
+
 function App() {
 
   return (
     <>
-      <landingPage/>
-      <div>
-        <h1 className="text-3xl font-bold underline">
-          Hello world!
-        </h1>
-      </div>
+      <div className="App">
+      <LandingPage />
+    </div>
     </>
   )
 }
