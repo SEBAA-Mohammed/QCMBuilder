@@ -1,10 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { validationResult } = require('express-validator');
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { full_name, email, password, role } = req.body;
 
     // Check if user exists
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -17,8 +18,8 @@ exports.register = async (req, res) => {
 
     // Insert user
     const [result] = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, role]
+      'INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)',
+      [full_name, email, hashedPassword, role]
     );
 
     const token = jwt.sign(
@@ -31,7 +32,7 @@ exports.register = async (req, res) => {
       token,
       user: {
         id: result.insertId,
-        name,
+        full_name,
         email,
         role
       }
@@ -44,9 +45,14 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password } = req.body;
 
-    // Get user
+    // Check if user exists
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -60,21 +66,14 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Generate JWT token
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
+    res.status(200).json({ token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
