@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-// const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -12,7 +12,7 @@ app.use(helmet());
 app.use(express.json());
 
 // Routes
-// app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
