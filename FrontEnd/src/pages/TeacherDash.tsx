@@ -3,16 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Users, Activity } from "lucide-react";
 import axios from 'axios';
+import { Test } from '@/types/Test';
+
+interface Stats {
+  totalTests: number;
+  activeStudents: number;
+  averageScore: number;
+}
 
 const TeacherDashboard = () => {
-  const [tests, setTests] = useState([]);
-  const [stats, setStats] = useState({
+  const [tests, setTests] = useState<Test[]>([]);
+  const [stats, setStats] = useState<Stats>({
     totalTests: 0,
     activeStudents: 0,
     averageScore: 0
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,7 +29,7 @@ const TeacherDashboard = () => {
         setStats(statsResponse.data);
         setTests(testsResponse.data);
       } catch (err) {
-        // @ts-expect-error - ignore error
+        // @ts-expect-error just a string err
         setError(err.message);
       } finally {
         setLoading(false);
@@ -93,7 +100,7 @@ const TeacherDashboard = () => {
             {tests.length === 0 ? (
               <p className="py-4 text-center text-gray-500">No tests created yet</p>
             ) : (
-              tests.map((test: any) => (
+              tests.map((test: Test) => (
                 <div key={test.id} className="py-4 flex justify-between items-center">
                   <div>
                     <h3 className="font-medium">{test.title}</h3>
