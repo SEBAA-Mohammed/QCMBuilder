@@ -22,21 +22,7 @@ exports.register = async (req, res) => {
       [full_name, email, hashedPassword, role]
     );
 
-    const token = jwt.sign(
-      { id: result.insertId, role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: result.insertId,
-        full_name,
-        email,
-        role
-      }
-    });
+    res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -44,15 +30,10 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password } = req.body;
-
-    // Check if user exists
+    // Find user by email
     const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -73,7 +54,20 @@ exports.login = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    res.status(200).json({ token });
+    // Return token and user information
+    res.status(200).json({
+      token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        is_active: user.is_active,
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
