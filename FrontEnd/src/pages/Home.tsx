@@ -20,7 +20,7 @@ const LandingPage: React.FC = () => {
           <div className="w-full md:w-3/5 py-6 text-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="851.034"
+              width="800.034"
               height="557.34684"
               viewBox="0 0 851.034 557.34684"
               role="img"
@@ -734,7 +734,7 @@ const LandingPage: React.FC = () => {
           </g>
         </g>
       </svg>
-      <section className="container mx-auto text-center py-6 mb-12">
+      <section className="container mx-auto  text-center py-6">
         <h2 className="w-full my-2 text-5xl font-bold leading-tight text-center text-white">
           Contact Us
         </h2>
