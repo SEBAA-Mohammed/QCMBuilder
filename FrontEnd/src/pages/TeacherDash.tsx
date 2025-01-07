@@ -20,7 +20,6 @@ const TeacherDashboard = () => {
     activeStudents: 0,
     averageScore: 0
   });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,17 +34,11 @@ const TeacherDashboard = () => {
       } catch (err) {
         // @ts-expect-error just a string err
         setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
-
-  if (loading) {
-    return <p>Loading...</p>;
-  }
+  }, [user]);
 
   if (error) {
     return <p>Error: {error}</p>;
