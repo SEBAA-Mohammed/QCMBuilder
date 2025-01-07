@@ -10,14 +10,7 @@ import { useLocation } from 'react-router-dom';
 import { User } from '@/types/User';
 
 
-// Props interface for type safety
-// interface CreateTestProps {
-//   user: {
-//     id: number;
-//     full_name: string;
-//   };
-//   onNavigate: (path: string) => void;
-// }
+
 
 const CreateTest: React.FC = () => {
     const location = useLocation();
@@ -47,14 +40,14 @@ const CreateTest: React.FC = () => {
   // Create initial test
   const createTest = async () => {
     try {
-      const response = await fetch('/api/tests', {
+      const response = await fetch('http://localhost:5000/api/tests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...testDetails,
-          teacher_id: user.id,
+          user: user,
           status: 'draft'
         }),
       });
@@ -89,7 +82,7 @@ const CreateTest: React.FC = () => {
     if (!testId) return;
 
     try {
-      const response = await fetch(`/api/tests/${testId}/questions`, {
+      const response = await fetch(`http://localhost:5000/api/tests/${testId}/questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +116,7 @@ const CreateTest: React.FC = () => {
     if (!testId) return;
 
     try {
-      const deleteResponse = await fetch(`/api/tests/${testId}/questions/${questionId}`, {
+      const deleteResponse = await fetch(`http://localhost:5000/api/tests/${testId}/questions/${questionId}`, {
         method: 'DELETE',
       });
       
@@ -139,7 +132,7 @@ const CreateTest: React.FC = () => {
       
       // Update order numbers in database
       await Promise.all(updatedQuestions.map(q => 
-        fetch(`/api/tests/${testId}/questions/${q.id}`, {
+        fetch(`http://localhost:5000/api/tests/${testId}/questions/${q.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
