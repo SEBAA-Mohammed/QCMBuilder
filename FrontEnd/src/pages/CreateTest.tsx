@@ -5,17 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, PlusCircle, Save } from "lucide-react";
+import { Question } from '@/types/QuestionAnswer';
+import { useLocation } from 'react-router-dom';
+import { User } from '@/types/User';
+
 
 // Props interface for type safety
-interface CreateTestProps {
-  user: {
-    id: number;
-    full_name: string;
-  };
-  onNavigate: (path: string) => void;
-}
+// interface CreateTestProps {
+//   user: {
+//     id: number;
+//     full_name: string;
+//   };
+//   onNavigate: (path: string) => void;
+// }
 
-const CreateTest: React.FC<CreateTestProps> = ({ user }) => {
+const CreateTest: React.FC = () => {
+    const location = useLocation();
+    const { user } = location.state as { user : User }; // Adjust the type as needed
+  
   const [testId, setTestId] = useState<number | null>(null);
   const [testDetails, setTestDetails] = useState({
     title: '',
@@ -26,7 +33,7 @@ const CreateTest: React.FC<CreateTestProps> = ({ user }) => {
     attempts_allowed: 1
   });
   
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState({
     content: '',
     type: 'one-correct-choice',
@@ -70,7 +77,7 @@ const CreateTest: React.FC<CreateTestProps> = ({ user }) => {
   };
 
   // Remove answer option from current question
-  const removeAnswer = (index) => {
+  const removeAnswer = (index : number) => {
     setCurrentQuestion(prev => ({
       ...prev,
       answers: prev.answers.filter((_, i) => i !== index)

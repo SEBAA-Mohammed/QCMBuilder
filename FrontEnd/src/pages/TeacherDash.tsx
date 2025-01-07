@@ -5,6 +5,8 @@ import { PlusCircle, BookOpen, Users, Activity } from "lucide-react";
 import axios from 'axios';
 import { Test } from '@/types/Test';
 import { useUser } from '@/context/userContext';
+import { useNavigate } from 'react-router-dom';
+
 
 interface Stats {
   totalTests: number;
@@ -14,6 +16,8 @@ interface Stats {
 
 const TeacherDashboard = () => {
     const { user } = useUser();
+    const navigate = useNavigate();
+
   const [tests, setTests] = useState<Test[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalTests: 0,
@@ -48,7 +52,9 @@ const TeacherDashboard = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2"
+        onClick={() => navigate('/create-test', { state: { user } })}
+        >
           <PlusCircle className="w-4 h-4" />
           Create New Test
         </Button>
