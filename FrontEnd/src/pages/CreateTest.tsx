@@ -55,7 +55,7 @@ const CreateTest: React.FC = () => {
       if (!response.ok) throw new Error('Failed to create test');
       
       const data = await response.json();
-      setTestId(data.id);
+      setTestId(data.testId);
     } catch (error) {
       console.error('Error creating test:', error);
     }
