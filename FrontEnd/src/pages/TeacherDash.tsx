@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, Users, Activity } from "lucide-react";
 import axios from 'axios';
 import { Test } from '@/types/Test';
+import { useUser } from '@/context/userContext';
 
 interface Stats {
   totalTests: number;
@@ -12,6 +13,7 @@ interface Stats {
 }
 
 const TeacherDashboard = () => {
+    const { user } = useUser();
   const [tests, setTests] = useState<Test[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalTests: 0,
@@ -23,11 +25,13 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+        if (!user) return;
       try {
-        const statsResponse = await axios.get('/api/teacher/stats');
-        const testsResponse = await axios.get('/api/teacher/tests');
+        const statsResponse = await axios.get(`http://localhost:5000/api/teacher/stats?teacherId=${user.id}`);
+        const testsResponse = await axios.get(`http://localhost:5000/api/teacher/tests?teacherId=${user.id}`);
         setStats(statsResponse.data);
         setTests(testsResponse.data);
+        console.log(testsResponse.data);
       } catch (err) {
         // @ts-expect-error just a string err
         setError(err.message);

@@ -1,3 +1,4 @@
+import { useUser } from '@/context/userContext';
 import axios from 'axios';
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +37,7 @@ export default function LoginRegister() {
 
 function LoginForm() {
   const navigate = useNavigate();
+  const { setUser } = useUser();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -60,6 +62,7 @@ function LoginForm() {
       setError('');
       console.log(response.data);
       if (response.data.user.role === 'teacher') {
+        setUser(response.data.user);
         navigate('/dashboard');
       } else {
         // Handle student login or other roles
