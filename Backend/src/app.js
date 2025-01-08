@@ -16,6 +16,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/tests', testRoutes);  
+app.use('/uploads', express.static('public/uploads'));
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

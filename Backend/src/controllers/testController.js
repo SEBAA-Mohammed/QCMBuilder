@@ -144,6 +144,9 @@ const testController = {
     try {
       const { testId } = req.params;
       const { content, type, points, answers } = req.body;
+      
+      // Get the photo path if an image was uploaded
+      const photo_path = req.file ? `/uploads/questions/${req.file.filename}` : null;
 
       await connection.beginTransaction();
 
@@ -153,23 +156,26 @@ const testController = {
         [testId]
       );
 
-      // Insert question
+      // Insert question with photo_path
       const [questionResult] = await connection.query(
-        `INSERT INTO questions (test_id, content, type, points, order_num)
-                 VALUES (?, ?, ?, ?, ?)`,
-        [testId, content, type, points, orderResult[0].next_order]
+        `INSERT INTO questions (test_id, content, type, points, order_num, photo_path)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [testId, content, type, points, orderResult[0].next_order, photo_path]
       );
 
+      // Parse answers from string back to array if it's a string
+      const parsedAnswers = typeof answers === 'string' ? JSON.parse(answers) : answers;
+
       // Insert answers
-      for (const answer of answers) {
+      for (const answer of parsedAnswers) {
         await connection.query(
           `INSERT INTO answers (question_id, content, is_correct, order_num)
-                     VALUES (?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?)`,
           [
             questionResult.insertId,
             answer.content,
             answer.is_correct,
-            answers.indexOf(answer) + 1,
+            parsedAnswers.indexOf(answer) + 1,
           ]
         );
       }
@@ -179,40 +185,77 @@ const testController = {
       res.status(201).json({
         success: true,
         questionId: questionResult.insertId,
-        message: "Question added successfully",
+        photo_path: photo_path,
+        message: "Question added successfully"
       });
     } catch (error) {
       await connection.rollback();
       console.error("Error adding question:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to add question",
+        message: "Failed to add question"
       });
     } finally {
       connection.release();
     }
   },
-  updateQuestion: async (req, res) => {
+  getTestById: async (req, res) => {
     const connection = await pool.getConnection();
     try {
-      const { questionId } = req.params;
-      const { content, type, points } = req.body;
+      const { id } = req.params;
+      const teacher_id = req.user.id;
 
-      await connection.beginTransaction();
-
-      // Update question
-      await connection.query(
-        `UPDATE questions SET content = ?, type = ?, points = ?
-             WHERE id = ?`,
-        [content, type, points, questionId]
+      // Get test details
+      const [test] = await connection.query(
+        "SELECT * FROM tests WHERE id = ? AND teacher_id = ?",
+        [id, teacher_id]
       );
 
-      await connection.commit();
-      res.status(200).json({ message: "Question updated successfully" });
+      if (test.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Test not found"
+        });
+      }
+
+      // Get questions with answers and photo_path
+      const [questions] = await connection.query(
+        `SELECT q.*, 
+                GROUP_CONCAT(CONCAT(a.id, '::', a.content, '::', a.is_correct) SEPARATOR '||') as answers
+         FROM questions q
+         LEFT JOIN answers a ON q.id = a.question_id
+         WHERE q.test_id = ?
+         GROUP BY q.id
+         ORDER BY q.order_num`,
+        [id]
+      );
+
+      // Format the answers
+      const formattedQuestions = questions.map((q) => ({
+        ...q,
+        answers: q.answers
+          ? q.answers.split("||").map((a) => {
+              const [id, content, is_correct] = a.split("::");
+              return {
+                id: parseInt(id),
+                content,
+                is_correct: is_correct === "1"
+              };
+            })
+          : []
+      }));
+
+      res.json({
+        success: true,
+        test: test[0],
+        questions: formattedQuestions
+      });
     } catch (error) {
-      await connection.rollback();
-      console.error(error);
-      res.status(500).json({ message: "Server error" });
+      console.error("Error fetching test:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch test details"
+      });
     } finally {
       connection.release();
     }
