@@ -257,13 +257,6 @@ const CreateTest: React.FC = () => {
               <Card key={question.id}>
                 <CardContent className="flex justify-between items-center p-4">
                   <div className="flex items-center gap-4">
-                    {question.photo_path && (
-                      <img
-                        src={question.photo_path}
-                        alt={`Question ${index + 1}`}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                    )}
                     <div>
                       <span className="font-bold mr-2">Q{index + 1}:</span>
                       {question.content}
