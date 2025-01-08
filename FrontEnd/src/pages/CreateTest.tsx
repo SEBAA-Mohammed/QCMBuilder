@@ -1,79 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, PlusCircle, Save } from "lucide-react";
-import { Question } from '@/types/QuestionAnswer';
-import { useLocation } from 'react-router-dom';
-import { User } from '@/types/User';
-
-
-
+import { Question } from "@/types/QuestionAnswer";
+import { useLocation } from "react-router-dom";
+import { User } from "@/types/User";
 
 const CreateTest: React.FC = () => {
-    const location = useLocation();
-    const { user } = location.state as { user : User }; // Adjust the type as needed
-  
+  const location = useLocation();
+  const { user } = location.state as { user: User }; // Adjust the type as needed
+
   const [testId, setTestId] = useState<number | null>(null);
   const [testDetails, setTestDetails] = useState({
-    title: '',
-    description: '',
+    title: "",
+    description: "",
     time_limit: 60,
     passing_score: 60,
     is_randomized: false,
-    attempts_allowed: 1
+    attempts_allowed: 1,
   });
-  
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState({
-    content: '',
-    type: 'one-correct-choice',
+    content: "",
+    type: "one-correct-choice",
     points: 1,
+    photo_path: null,
     answers: [
-      { content: '', is_correct: false },
-      { content: '', is_correct: false }
-    ]
+      { content: "", is_correct: false },
+      { content: "", is_correct: false },
+    ],
   });
 
   // Create initial test
   const createTest = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tests', {
-        method: 'POST',
+      const response = await fetch("http://localhost:5000/api/tests", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...testDetails,
           user: user,
-          status: 'draft'
+          status: "draft",
         }),
       });
-      
-      if (!response.ok) throw new Error('Failed to create test');
-      
+
+      if (!response.ok) throw new Error("Failed to create test");
+
       const data = await response.json();
       setTestId(data.testId);
     } catch (error) {
-      console.error('Error creating test:', error);
+      console.error("Error creating test:", error);
     }
   };
 
   // Add answer option to current question
   const addAnswer = () => {
-    setCurrentQuestion(prev => ({
+    setCurrentQuestion((prev) => ({
       ...prev,
-      answers: [...prev.answers, { content: '', is_correct: false }]
+      answers: [...prev.answers, { content: "", is_correct: false }],
     }));
   };
 
   // Remove answer option from current question
-  const removeAnswer = (index : number) => {
-    setCurrentQuestion(prev => ({
+  const removeAnswer = (index: number) => {
+    setCurrentQuestion((prev) => ({
       ...prev,
-      answers: prev.answers.filter((_, i) => i !== index)
+      answers: prev.answers.filter((_, i) => i !== index),
     }));
   };
 
@@ -82,32 +80,45 @@ const CreateTest: React.FC = () => {
     if (!testId) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/tests/${testId}/questions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...currentQuestion,
-          order_num: questions.length + 1
-        }),
-      });
-      
-      if (!response.ok) throw new Error('Failed to save question');
-      
+      const formData = new FormData();
+      formData.append("content", currentQuestion.content);
+      formData.append("type", currentQuestion.type);
+      formData.append("points", currentQuestion.points.toString());
+      formData.append("order_num", (questions.length + 1).toString());
+      formData.append("answers", JSON.stringify(currentQuestion.answers));
+
+      // If there's an image (base64), convert it to a file
+      if (currentQuestion.photo_path) {
+        const response = await fetch(currentQuestion.photo_path);
+        const blob = await response.blob();
+        formData.append("photo", blob, "question-image.jpg");
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/tests/${testId}/questions`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to save question");
+
       const data = await response.json();
-      setQuestions(prev => [...prev, data]);
+      setQuestions((prev) => [...prev, data]);
+      // Reset the form including photo_path
       setCurrentQuestion({
-        content: '',
-        type: 'one-correct-choice',
+        content: "",
+        type: "one-correct-choice",
         points: 1,
+        photo_path: null,
         answers: [
-          { content: '', is_correct: false },
-          { content: '', is_correct: false }
-        ]
+          { content: "", is_correct: false },
+          { content: "", is_correct: false },
+        ],
       });
     } catch (error) {
-      console.error('Error saving question:', error);
+      console.error("Error saving question:", error);
     }
   };
 
@@ -116,36 +127,41 @@ const CreateTest: React.FC = () => {
     if (!testId) return;
 
     try {
-      const deleteResponse = await fetch(`http://localhost:5000/api/tests/${testId}/questions/${questionId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!deleteResponse.ok) throw new Error('Failed to delete question');
-      
+      const deleteResponse = await fetch(
+        `http://localhost:5000/api/tests/${testId}/questions/${questionId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!deleteResponse.ok) throw new Error("Failed to delete question");
+
       // Update order numbers for remaining questions
       const updatedQuestions = questions
-        .filter(q => q.id !== questionId)
-        .map(q => ({
+        .filter((q) => q.id !== questionId)
+        .map((q) => ({
           ...q,
-          order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num
+          order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num,
         }));
-      
+
       // Update order numbers in database
-      await Promise.all(updatedQuestions.map(q => 
-        fetch(`http://localhost:5000/api/tests/${testId}/questions/${q.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            order_num: q.order_num
-          }),
-        })
-      ));
-      
+      await Promise.all(
+        updatedQuestions.map((q) =>
+          fetch(`http://localhost:5000/api/tests/${testId}/questions/${q.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              order_num: q.order_num,
+            }),
+          })
+        )
+      );
+
       setQuestions(updatedQuestions);
     } catch (error) {
-      console.error('Error deleting question:', error);
+      console.error("Error deleting question:", error);
     }
   };
 
@@ -160,63 +176,72 @@ const CreateTest: React.FC = () => {
             <Input
               placeholder="Test Title"
               value={testDetails.title}
-              onChange={(e) => setTestDetails(prev => ({
-                ...prev,
-                title: e.target.value
-              }))}
+              onChange={(e) =>
+                setTestDetails((prev) => ({
+                  ...prev,
+                  title: e.target.value,
+                }))
+              }
             />
-            
+
             <Textarea
               placeholder="Test Description"
               value={testDetails.description}
-              onChange={(e) => setTestDetails(prev => ({
-                ...prev,
-                description: e.target.value
-              }))}
+              onChange={(e) =>
+                setTestDetails((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
             />
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm mb-1">Time Limit (minutes)</label>
+                <label className="block text-sm mb-1">
+                  Time Limit (minutes)
+                </label>
                 <Input
                   type="number"
                   value={testDetails.time_limit}
-                  onChange={(e) => setTestDetails(prev => ({
-                    ...prev,
-                    time_limit: parseInt(e.target.value)
-                  }))}
+                  onChange={(e) =>
+                    setTestDetails((prev) => ({
+                      ...prev,
+                      time_limit: parseInt(e.target.value),
+                    }))
+                  }
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm mb-1">Passing Score (%)</label>
                 <Input
                   type="number"
                   value={testDetails.passing_score}
-                  onChange={(e) => setTestDetails(prev => ({
-                    ...prev,
-                    passing_score: parseInt(e.target.value)
-                  }))}
+                  onChange={(e) =>
+                    setTestDetails((prev) => ({
+                      ...prev,
+                      passing_score: parseInt(e.target.value),
+                    }))
+                  }
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span>Randomize Questions</span>
               <Switch
                 checked={testDetails.is_randomized}
-                onCheckedChange={(checked) => setTestDetails(prev => ({
-                  ...prev,
-                  is_randomized: checked
-                }))}
+                onCheckedChange={(checked) =>
+                  setTestDetails((prev) => ({
+                    ...prev,
+                    is_randomized: checked,
+                  }))
+                }
               />
             </div>
-            
+
             {!testId && (
-              <Button 
-                className="w-full" 
-                onClick={createTest}
-              >
+              <Button className="w-full" onClick={createTest}>
                 Create Test
               </Button>
             )}
@@ -231,14 +256,25 @@ const CreateTest: React.FC = () => {
             {questions.map((question, index) => (
               <Card key={question.id}>
                 <CardContent className="flex justify-between items-center p-4">
-                  <div>
-                    <span className="font-bold mr-2">Q{index + 1}:</span>
-                    {question.content}
+                  <div className="flex items-center gap-4">
+                    {question.photo_path && (
+                      <img
+                        src={question.photo_path}
+                        alt={`Question ${index + 1}`}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                    )}
+                    <div>
+                      <span className="font-bold mr-2">Q{index + 1}:</span>
+                      {question.content}
+                    </div>
                   </div>
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => deleteQuestion(question.id, question.order_num)}
+                    onClick={() =>
+                      deleteQuestion(question.id, question.order_num)
+                    }
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -256,12 +292,46 @@ const CreateTest: React.FC = () => {
               <Textarea
                 placeholder="Question content"
                 value={currentQuestion.content}
-                onChange={(e) => setCurrentQuestion(prev => ({
-                  ...prev,
-                  content: e.target.value
-                }))}
+                onChange={(e) =>
+                  setCurrentQuestion((prev) => ({
+                    ...prev,
+                    content: e.target.value,
+                  }))
+                }
               />
-              
+
+              {/* Add this new image input section */}
+              <div className="space-y-2">
+                <label className="block text-sm">Question Image</label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        // @ts-expect-error - base64 is a string
+                        setCurrentQuestion((prev) => ({
+                          ...prev,
+                          photo_path: reader.result as string,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                {currentQuestion.photo_path && (
+                  <div className="mt-2">
+                    <img
+                      src={currentQuestion.photo_path}
+                      alt="Question preview"
+                      className="max-h-40 object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-4">
                 {currentQuestion.answers.map((answer, index) => (
                   <div key={index} className="flex gap-4 items-center">
@@ -271,9 +341,9 @@ const CreateTest: React.FC = () => {
                       onChange={(e) => {
                         const newAnswers = [...currentQuestion.answers];
                         newAnswers[index].content = e.target.value;
-                        setCurrentQuestion(prev => ({
+                        setCurrentQuestion((prev) => ({
                           ...prev,
-                          answers: newAnswers
+                          answers: newAnswers,
                         }));
                       }}
                     />
@@ -281,13 +351,13 @@ const CreateTest: React.FC = () => {
                       checked={answer.is_correct}
                       onCheckedChange={(checked) => {
                         const newAnswers = [...currentQuestion.answers];
-                        if (currentQuestion.type === 'one-correct-choice') {
-                          newAnswers.forEach(a => a.is_correct = false);
+                        if (currentQuestion.type === "one-correct-choice") {
+                          newAnswers.forEach((a) => (a.is_correct = false));
                         }
                         newAnswers[index].is_correct = checked;
-                        setCurrentQuestion(prev => ({
+                        setCurrentQuestion((prev) => ({
                           ...prev,
-                          answers: newAnswers
+                          answers: newAnswers,
                         }));
                       }}
                     />
@@ -302,7 +372,7 @@ const CreateTest: React.FC = () => {
                     )}
                   </div>
                 ))}
-                
+
                 <Button
                   variant="outline"
                   onClick={addAnswer}
@@ -312,11 +382,8 @@ const CreateTest: React.FC = () => {
                   Add Answer Option
                 </Button>
               </div>
-              
-              <Button
-                onClick={saveQuestion}
-                className="w-full"
-              >
+
+              <Button onClick={saveQuestion} className="w-full">
                 <Save className="w-4 h-4 mr-2" />
                 Save Question
               </Button>

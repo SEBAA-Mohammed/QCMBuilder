@@ -6,6 +6,7 @@ export interface Answer {
   export interface Question {
     id: number;
     content: string;
+    photo_path:string,
     type: 'multiple-correct-choice' | 'one-correct-choice';
     points: number;
     order_num: number;
