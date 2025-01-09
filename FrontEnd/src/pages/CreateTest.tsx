@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import {  useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ const CreateTest: React.FC = () => {
     attempts_allowed: 1,
   });
 
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState({
     content: "",
@@ -117,6 +118,8 @@ const CreateTest: React.FC = () => {
           { content: "", is_correct: false },
         ],
       });
+      setFileInputKey(prev => prev + 1);
+      document.getElementById("photo")?.setAttribute("value", "");
     } catch (error) {
       console.error("Error saving question:", error);
     }
@@ -297,7 +300,9 @@ const CreateTest: React.FC = () => {
               <div className="space-y-2">
                 <label className="block text-sm">Question Image</label>
                 <Input
+                  key={fileInputKey}
                   type="file"
+                  id="photo"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
