@@ -1,4 +1,8 @@
 # Ignore node_modules in Backend folder
 Backend/node_modules/
+
 # Ignore the environment file
 Backend/.env
+
+# Ignore uploaded question images
+Backend/public/uploads/questions/
