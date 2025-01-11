@@ -1,4 +1,4 @@
-import {  useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,12 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, PlusCircle, Save } from "lucide-react";
 import { Question } from "@/types/QuestionAnswer";
-import { useLocation } from "react-router-dom";
-import { User } from "@/types/User";
+import { Moon, Sun, ArrowLeft, LogOut } from "lucide-react";
+import { useTheme } from "@/components/theme-context";
+import { useNavigate } from "react-router-dom";
+import { useUser } from "@/context/userContext";
 
 const CreateTest: React.FC = () => {
-  const location = useLocation();
-  const { user } = location.state as { user: User }; // Adjust the type as needed
+  const { user, setUser } = useUser();
+  const navigate = useNavigate();
+  if (!user) {
+    navigate("/login");
+  }
 
   const [testId, setTestId] = useState<number | null>(null);
   const [testDetails, setTestDetails] = useState({
@@ -35,6 +40,14 @@ const CreateTest: React.FC = () => {
       { content: "", is_correct: false },
     ],
   });
+  const { theme, setTheme } = useTheme();
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+  const handleLogout = () => {
+    setUser(null);
+    navigate("/login");
+  };
 
   // Create initial test
   const createTest = async () => {
@@ -118,7 +131,7 @@ const CreateTest: React.FC = () => {
           { content: "", is_correct: false },
         ],
       });
-      setFileInputKey(prev => prev + 1);
+      setFileInputKey((prev) => prev + 1);
       document.getElementById("photo")?.setAttribute("value", "");
     } catch (error) {
       console.error("Error saving question:", error);
@@ -170,9 +183,49 @@ const CreateTest: React.FC = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col">
+          <h1 className="text-3xl font-bold">Create Test</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            className="w-10 h-10"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
+        </div>
+      </div>
+
+      {/* Test Details Form */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Create New Test</CardTitle>
+          <CardTitle>Test Details</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
