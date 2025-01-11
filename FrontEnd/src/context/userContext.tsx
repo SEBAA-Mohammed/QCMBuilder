@@ -1,37 +1,37 @@
-import { createContext, useState, useContext, ReactNode } from 'react';
+// context/userContext.tsx
+import { createContext, useContext, useState } from 'react';
+import { User } from '@/types/User';
 
-interface User {
-  id: number;
-  full_name: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  last_login: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UserContextType {
+const UserContext = createContext<{
   user: User | null;
   setUser: (user: User | null) => void;
-}
+}>({
+  user: null,
+  setUser: () => {},
+});
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  // Check localStorage on initial load
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
-export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Modify setUser to also update localStorage
+  const handleSetUser = (newUser: User | null) => {
+    if (newUser) {
+      localStorage.setItem('user', JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem('user');
+    }
+    setUser(newUser);
+  };
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user, setUser: handleSetUser }}>
       {children}
     </UserContext.Provider>
   );
-};
+}
 
-export const useUser = () => {
-  const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
-  return context;
-};
+export const useUser = () => useContext(UserContext);
