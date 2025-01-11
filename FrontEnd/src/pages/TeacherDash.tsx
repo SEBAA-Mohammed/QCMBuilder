@@ -15,9 +15,12 @@ interface Stats {
 }
 
 const TeacherDashboard = () => {
-    const { user } = useUser();
+    const { user, setUser } = useUser();
     const navigate = useNavigate();
     const { theme, setTheme } = useTheme();
+    if (!user) {
+      navigate('/login');
+  }
 
     const [tests, setTests] = useState<Test[]>([]);
     const [stats, setStats] = useState<Stats>({
@@ -28,7 +31,7 @@ const TeacherDashboard = () => {
     const [error, setError] = useState<string | null>(null);
 
     const handleLogout = () => {
-      // Implement your logout logic here
+      setUser(null);
       navigate('/login');
     };
 

@@ -60,13 +60,14 @@ function LoginForm() {
       const response = await axios.post('http://localhost:5000/api/auth/login', formData);
       setSuccess('Login successful');
       setError('');
-      console.log(response.data);
+      
       if (response.data.user.role === 'teacher') {
+        // The user will now persist in localStorage
         setUser(response.data.user);
         navigate('/dashboard');
       } else {
         // Handle student login or other roles
-      } // Handle the response as needed
+      }
     } catch (err) {
       setError('Invalid email or password');
       setSuccess('');
