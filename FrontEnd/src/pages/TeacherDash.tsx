@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Users, Activity, LogOut } from "lucide-react";
+import { PlusCircle, BookOpen, Users, Activity, LogOut, Moon, Sun } from "lucide-react";
 import axios from 'axios';
 import { Test } from '@/types/Test';
 import { useUser } from '@/context/userContext';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../components/theme-context';
 
 interface Stats {
   totalTests: number;
@@ -16,6 +17,7 @@ interface Stats {
 const TeacherDashboard = () => {
     const { user } = useUser();
     const navigate = useNavigate();
+    const { theme, setTheme } = useTheme();
 
     const [tests, setTests] = useState<Test[]>([]);
     const [stats, setStats] = useState<Stats>({
@@ -28,6 +30,10 @@ const TeacherDashboard = () => {
     const handleLogout = () => {
       // Implement your logout logic here
       navigate('/login');
+    };
+
+    const toggleTheme = () => {
+      setTheme(theme === 'dark' ? 'light' : 'dark');
     };
 
     const formatDate = (dateString: string) => {
@@ -67,9 +73,21 @@ const TeacherDashboard = () => {
         <div className="flex justify-between items-center mb-6">
           <div className="flex flex-col">
             <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <p className="text-gray-600 mt-1">Welcome, {user?.full_name}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome, {user?.full_name}</p>
           </div>
           <div className="flex gap-4">
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              className="w-10 h-10"
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
             <Button 
               className="flex items-center gap-2"
               onClick={() => navigate('/create-test', { state: { user } })}
@@ -93,7 +111,7 @@ const TeacherDashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
-              <BookOpen className="w-4 h-4 text-gray-500" />
+              <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalTests}</div>
@@ -103,7 +121,7 @@ const TeacherDashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Students</CardTitle>
-              <Users className="w-4 h-4 text-gray-500" />
+              <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeStudents}</div>
@@ -113,7 +131,7 @@ const TeacherDashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-              <Activity className="w-4 h-4 text-gray-500" />
+              <Activity className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.averageScore}%</div>
@@ -129,13 +147,13 @@ const TeacherDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tests.length === 0 ? (
-                <p className="py-4 text-center text-gray-500 col-span-2">No tests created yet</p>
+                <p className="py-4 text-center text-gray-500 dark:text-gray-400 col-span-2">No tests created yet</p>
               ) : (
                 tests.map((test: Test) => (
-                  <div key={test.id} className="p-4 border rounded-lg">
+                  <div key={test.id} className="p-4 border dark:border-gray-700 rounded-lg">
                     <div>
                       <h3 className="font-medium">{test.title}</h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         {test.status} • {formatDate(test.created_at)}
                       </p>
                     </div>
