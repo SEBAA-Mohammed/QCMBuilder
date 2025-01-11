@@ -1,5 +1,5 @@
 import { ThemeProviderContext, type Theme } from "./theme-context"
-import {  useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -10,7 +10,11 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Load theme from localStorage or fallback to defaultTheme
+    const storedTheme = localStorage.getItem("theme") as Theme
+    return storedTheme || defaultTheme
+  })
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -24,10 +28,12 @@ export function ThemeProvider({
         : "light"
 
       root.classList.add(systemTheme)
-      return
+    } else {
+      root.classList.add(theme)
     }
 
-    root.classList.add(theme)
+    // Save theme to localStorage
+    localStorage.setItem("theme", theme)
   }, [theme])
 
   return (
