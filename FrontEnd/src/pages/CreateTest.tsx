@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, PlusCircle, Save } from "lucide-react";
+import { Trash2, PlusCircle, Save, AlertTriangle } from "lucide-react";
 import { Question } from "@/types/QuestionAnswer";
 import { Moon, Sun, ArrowLeft, LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-context";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/userContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CreateTest: React.FC = () => {
   const { user, setUser } = useUser();
@@ -27,6 +28,54 @@ const CreateTest: React.FC = () => {
     is_randomized: false,
     attempts_allowed: 1,
   });
+
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [questionValidationErrors, setQuestionValidationErrors] = useState<
+    string[]
+  >([]);
+
+  const validateTestDetails = () => {
+    const errors: string[] = [];
+
+    if (!testDetails.title.trim()) {
+      errors.push("Test title is required");
+    }
+    if (!testDetails.description.trim()) {
+      errors.push("Test description is required");
+    }
+    if (testDetails.time_limit <= 0) {
+      errors.push("Time limit must be greater than 0");
+    }
+    if (testDetails.passing_score < 0 || testDetails.passing_score > 100) {
+      errors.push("Passing score must be between 0 and 100");
+    }
+
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
+
+  const validateQuestion = () => {
+    const errors: string[] = [];
+
+    if (!currentQuestion.content.trim()) {
+      errors.push("Question content is required");
+    }
+
+    const filledAnswers = currentQuestion.answers.filter((a) =>
+      a.content.trim()
+    );
+    if (filledAnswers.length < 2) {
+      errors.push("At least two answer options are required");
+    }
+
+    const hasCorrectAnswer = currentQuestion.answers.some((a) => a.is_correct);
+    if (!hasCorrectAnswer) {
+      errors.push("At least one correct answer must be selected");
+    }
+
+    setQuestionValidationErrors(errors);
+    return errors.length === 0;
+  };
 
   const [fileInputKey, setFileInputKey] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -51,6 +100,8 @@ const CreateTest: React.FC = () => {
 
   // Create initial test
   const createTest = async () => {
+    if (!validateTestDetails()) return;
+
     try {
       const response = await fetch("http://localhost:5000/api/tests", {
         method: "POST",
@@ -68,8 +119,10 @@ const CreateTest: React.FC = () => {
 
       const data = await response.json();
       setTestId(data.testId);
+      setValidationErrors([]);
     } catch (error) {
       console.error("Error creating test:", error);
+      setValidationErrors(["Failed to create test. Please try again."]);
     }
   };
 
@@ -92,6 +145,7 @@ const CreateTest: React.FC = () => {
   // Save question to database
   const saveQuestion = async () => {
     if (!testId) return;
+    if (!validateQuestion()) return;
 
     try {
       const formData = new FormData();
@@ -101,7 +155,6 @@ const CreateTest: React.FC = () => {
       formData.append("order_num", (questions.length + 1).toString());
       formData.append("answers", JSON.stringify(currentQuestion.answers));
 
-      // If there's an image (base64), convert it to a file
       if (currentQuestion.photo_path) {
         const response = await fetch(currentQuestion.photo_path);
         const blob = await response.blob();
@@ -120,7 +173,6 @@ const CreateTest: React.FC = () => {
 
       const data = await response.json();
       setQuestions((prev) => [...prev, data]);
-      // Reset the form including photo_path
       setCurrentQuestion({
         content: "",
         type: "one-correct-choice",
@@ -132,9 +184,12 @@ const CreateTest: React.FC = () => {
         ],
       });
       setFileInputKey((prev) => prev + 1);
-      document.getElementById("photo")?.setAttribute("value", "");
+      setQuestionValidationErrors([]);
     } catch (error) {
       console.error("Error saving question:", error);
+      setQuestionValidationErrors([
+        "Failed to save question. Please try again.",
+      ]);
     }
   };
 
@@ -228,27 +283,41 @@ const CreateTest: React.FC = () => {
           <CardTitle>Test Details</CardTitle>
         </CardHeader>
         <CardContent>
+          {validationErrors.length > 0 && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc pl-4">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-4">
             <Input
               placeholder="Test Title"
               value={testDetails.title}
-              onChange={(e) =>
+              onChange={(e) => {
                 setTestDetails((prev) => ({
                   ...prev,
                   title: e.target.value,
-                }))
-              }
+                }));
+                validateTestDetails();
+              }}
             />
 
             <Textarea
               placeholder="Test Description"
               value={testDetails.description}
-              onChange={(e) =>
+              onChange={(e) => {
                 setTestDetails((prev) => ({
                   ...prev,
                   description: e.target.value,
-                }))
-              }
+                }));
+                validateTestDetails();
+              }}
             />
 
             <div className="grid grid-cols-2 gap-4">
@@ -259,12 +328,13 @@ const CreateTest: React.FC = () => {
                 <Input
                   type="number"
                   value={testDetails.time_limit}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setTestDetails((prev) => ({
                       ...prev,
                       time_limit: parseInt(e.target.value),
-                    }))
-                  }
+                    }));
+                    validateTestDetails();
+                  }}
                 />
               </div>
 
@@ -273,12 +343,13 @@ const CreateTest: React.FC = () => {
                 <Input
                   type="number"
                   value={testDetails.passing_score}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setTestDetails((prev) => ({
                       ...prev,
                       passing_score: parseInt(e.target.value),
-                    }))
-                  }
+                    }));
+                    validateTestDetails();
+                  }}
                 />
               </div>
             </div>
@@ -287,17 +358,22 @@ const CreateTest: React.FC = () => {
               <span>Randomize Questions</span>
               <Switch
                 checked={testDetails.is_randomized}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
                   setTestDetails((prev) => ({
                     ...prev,
                     is_randomized: checked,
-                  }))
-                }
+                  }));
+                  validateTestDetails();
+                }}
               />
             </div>
 
             {!testId && (
-              <Button className="w-full" onClick={createTest}>
+              <Button
+                className="w-full"
+                onClick={createTest}
+                disabled={validationErrors.length > 0}
+              >
                 Create Test
               </Button>
             )}
@@ -338,6 +414,18 @@ const CreateTest: React.FC = () => {
               <CardTitle>Add New Question</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {questionValidationErrors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="list-disc pl-4">
+                      {questionValidationErrors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
               <Textarea
                 placeholder="Question content"
                 value={currentQuestion.content}
@@ -434,7 +522,11 @@ const CreateTest: React.FC = () => {
                 </Button>
               </div>
 
-              <Button onClick={saveQuestion} className="w-full">
+              <Button
+                onClick={saveQuestion}
+                className="w-full"
+                disabled={questionValidationErrors.length > 0}
+              >
                 <Save className="w-4 h-4 mr-2" />
                 Save Question
               </Button>
@@ -445,5 +537,4 @@ const CreateTest: React.FC = () => {
     </div>
   );
 };
-
 export default CreateTest;
