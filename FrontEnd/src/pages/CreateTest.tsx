@@ -429,11 +429,14 @@ const CreateTest: React.FC = () => {
               <Textarea
                 placeholder="Question content"
                 value={currentQuestion.content}
-                onChange={(e) =>
+                onChange={(e) =>{
                   setCurrentQuestion((prev) => ({
                     ...prev,
                     content: e.target.value,
-                  }))
+                  }));
+                  validateQuestion();
+                }
+                  
                 }
               />
 
@@ -484,6 +487,7 @@ const CreateTest: React.FC = () => {
                           ...prev,
                           answers: newAnswers,
                         }));
+                        validateQuestion();
                       }}
                     />
                     <Switch
@@ -498,6 +502,7 @@ const CreateTest: React.FC = () => {
                           ...prev,
                           answers: newAnswers,
                         }));
+                        validateQuestion();
                       }}
                     />
                     {currentQuestion.answers.length > 2 && (
