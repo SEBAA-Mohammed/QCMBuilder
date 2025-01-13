@@ -11,6 +11,7 @@ import { useTheme } from "@/components/theme-context";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/userContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import Swal from "sweetalert2";
 
 const CreateTest: React.FC = () => {
   const { user, setUser } = useUser();
@@ -120,6 +121,20 @@ const CreateTest: React.FC = () => {
       const data = await response.json();
       setTestId(data.testId);
       setValidationErrors([]);
+      const toast = Swal.mixin({
+                          toast: true,
+                          position: "bottom-end",
+                          showConfirmButton: false,
+                          timer: 3000,
+                          padding: "2em",
+                          timerProgressBar: true,
+                          
+                      });
+                      toast.fire({
+                          icon: "success",
+                          title: "Test Created , you can add questions now",
+                          padding: "2em",
+                      });
     } catch (error) {
       console.error("Error creating test:", error);
       setValidationErrors(["Failed to create test. Please try again."]);
@@ -185,6 +200,20 @@ const CreateTest: React.FC = () => {
       });
       setFileInputKey((prev) => prev + 1);
       setQuestionValidationErrors([]);
+      const toast = Swal.mixin({
+                          toast: true,
+                          position: "bottom-end",
+                          showConfirmButton: false,
+                          timer: 3000,
+                          padding: "2em",
+                          timerProgressBar: true,
+                          
+                      });
+                      toast.fire({
+                          icon: "success",
+                          title: "Question added to test",
+                          padding: "2em",
+                      });
     } catch (error) {
       console.error("Error saving question:", error);
       setQuestionValidationErrors([

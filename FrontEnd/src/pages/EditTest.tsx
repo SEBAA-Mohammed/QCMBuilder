@@ -11,6 +11,7 @@ import { useTheme } from "@/components/theme-context";
 import { useNavigate, useParams } from "react-router-dom";
 import { useUser } from "@/context/userContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import Swal from "sweetalert2";
 
 const EditTest: React.FC = () => {
   const { testId } = useParams();
@@ -150,6 +151,20 @@ const EditTest: React.FC = () => {
 
       if (!response.ok) throw new Error("Failed to update test");
       setValidationErrors([]);
+      const toast = Swal.mixin({
+                                toast: true,
+                                position: "bottom-end",
+                                showConfirmButton: false,
+                                timer: 3000,
+                                padding: "2em",
+                                timerProgressBar: true,
+                                
+                            });
+                            toast.fire({
+                                icon: "success",
+                                title: "Test Updated Successfully",
+                                padding: "2em",
+                            });
     } catch (error) {
       console.error("Error updating test:", error);
       setValidationErrors(["Failed to update test. Please try again."]);
