@@ -76,7 +76,7 @@ const TeacherDashboard = () => {
         <div className="flex justify-between items-center mb-6">
           <div className="flex flex-col">
             <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome, {user?.full_name}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1 font-bold">Welcome, {user?.full_name.toUpperCase()}</p>
           </div>
           <div className="flex gap-4">
             <Button 
@@ -145,7 +145,7 @@ const TeacherDashboard = () => {
         {/* Recent Tests */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Recent Tests</CardTitle>
+            <CardTitle className="text-xl font-bold">Recent Tests</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -161,8 +161,11 @@ const TeacherDashboard = () => {
                       </p>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm">Edit</Button>
+                      <Button 
+                       onClick={() => navigate(`/edit-test/${test.id}`)}
+                      variant="outline" size="sm">Edit</Button>
                       <Button variant="outline" size="sm">View Results</Button>
+                      <Button variant="outline" size="sm">Publish</Button>
                     </div>
                   </div>
                 ))
