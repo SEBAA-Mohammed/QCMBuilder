@@ -77,68 +77,6 @@ const testController = {
     }
   },
 
-  getTestById: async (req, res) => {
-    const connection = await pool.getConnection();
-    try {
-      const { id } = req.params;
-      const teacher_id = req.user.id;
-
-      // Get test details
-      const [test] = await connection.query(
-        "SELECT * FROM tests WHERE id = ? AND teacher_id = ?",
-        [id, teacher_id]
-      );
-
-      if (test.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Test not found",
-        });
-      }
-
-      // Get questions with answers
-      const [questions] = await connection.query(
-        `SELECT q.*, 
-                        GROUP_CONCAT(CONCAT(a.id, '::', a.content, '::', a.is_correct) SEPARATOR '||') as answers
-                 FROM questions q
-                 LEFT JOIN answers a ON q.id = a.question_id
-                 WHERE q.test_id = ?
-                 GROUP BY q.id
-                 ORDER BY q.order_num`,
-        [id]
-      );
-
-      // Format the answers
-      const formattedQuestions = questions.map((q) => ({
-        ...q,
-        answers: q.answers
-          ? q.answers.split("||").map((a) => {
-              const [id, content, is_correct] = a.split("::");
-              return {
-                id: parseInt(id),
-                content,
-                is_correct: is_correct === "1",
-              };
-            })
-          : [],
-      }));
-
-      res.json({
-        success: true,
-        test: test[0],
-        questions: formattedQuestions,
-      });
-    } catch (error) {
-      console.error("Error fetching test:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch test details",
-      });
-    } finally {
-      connection.release();
-    }
-  },
-
   addQuestion: async (req, res) => {
     const connection = await pool.getConnection();
     try {
@@ -200,15 +138,15 @@ const testController = {
     }
   },
   getTestById: async (req, res) => {
+    console.log(req.query);
     const connection = await pool.getConnection();
     try {
-      const { id } = req.params;
-      const teacher_id = req.user.id;
+      const { testId, teacherId } = req.query;
 
       // Get test details
       const [test] = await connection.query(
         "SELECT * FROM tests WHERE id = ? AND teacher_id = ?",
-        [id, teacher_id]
+        [testId, teacherId]
       );
 
       if (test.length === 0) {
@@ -227,7 +165,7 @@ const testController = {
          WHERE q.test_id = ?
          GROUP BY q.id
          ORDER BY q.order_num`,
-        [id]
+        [testId]
       );
 
       // Format the answers

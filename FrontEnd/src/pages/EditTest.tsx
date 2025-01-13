@@ -32,7 +32,9 @@ const EditTest: React.FC = () => {
   });
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [questionValidationErrors, setQuestionValidationErrors] = useState<string[]>([]);
+  const [questionValidationErrors, setQuestionValidationErrors] = useState<
+    string[]
+  >([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState({
     content: "",
@@ -52,34 +54,39 @@ const EditTest: React.FC = () => {
   useEffect(() => {
     const fetchTestData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/tests/${testId}`);
+        const response = await fetch(`http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${user?.id}`);
+
         if (!response.ok) throw new Error("Failed to fetch test");
-        
+
         const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || "Failed to fetch test");
+        }
+
+        // Set test details from data.test
         setTestDetails({
-          title: data.title,
-          description: data.description,
-          time_limit: data.time_limit,
-          passing_score: data.passing_score,
-          is_randomized: data.is_randomized,
-          attempts_allowed: data.attempts_allowed,
+          title: data.test.title,
+          description: data.test.description,
+          time_limit: data.test.time_limit,
+          passing_score: data.test.passing_score,
+          is_randomized: data.test.is_randomized,
+          attempts_allowed: data.test.attempts_allowed,
         });
 
-        // Fetch questions
-        const questionsResponse = await fetch(`http://localhost:5000/api/tests/${testId}/questions`);
-        if (!questionsResponse.ok) throw new Error("Failed to fetch questions");
-        
-        const questionsData = await questionsResponse.json();
-        setQuestions(questionsData);
+        // Set questions directly from data.questions
+        setQuestions(data.questions);
       } catch (error) {
         console.error("Error fetching test data:", error);
+        // You might want to show an error message to the user here
+        setValidationErrors([(error as Error).message]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchTestData();
-  }, [testId]);
+  }, [testId, user?.id]);
 
   const validateTestDetails = () => {
     const errors: string[] = [];
@@ -108,7 +115,9 @@ const EditTest: React.FC = () => {
       errors.push("Question content is required");
     }
 
-    const filledAnswers = currentQuestion.answers.filter((a) => a.content.trim());
+    const filledAnswers = currentQuestion.answers.filter((a) =>
+      a.content.trim()
+    );
     if (filledAnswers.length < 2) {
       errors.push("At least two answer options are required");
     }
@@ -126,13 +135,16 @@ const EditTest: React.FC = () => {
     if (!validateTestDetails()) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/tests/${testId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(testDetails),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/tests/${testId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(testDetails),
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to update test");
       setValidationErrors([]);
@@ -211,7 +223,9 @@ const EditTest: React.FC = () => {
       setQuestionValidationErrors([]);
     } catch (error) {
       console.error("Error saving question:", error);
-      setQuestionValidationErrors(["Failed to save question. Please try again."]);
+      setQuestionValidationErrors([
+        "Failed to save question. Please try again.",
+      ]);
     }
   };
 
@@ -350,7 +364,9 @@ const EditTest: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm mb-1">Time Limit (minutes)</label>
+                <label className="block text-sm mb-1">
+                  Time Limit (minutes)
+                </label>
                 <Input
                   type="number"
                   value={testDetails.time_limit}
@@ -534,11 +550,7 @@ const EditTest: React.FC = () => {
               </div>
             ))}
 
-            <Button
-              variant="outline"
-              onClick={addAnswer}
-              className="w-full"
-            >
+            <Button variant="outline" onClick={addAnswer} className="w-full">
               <PlusCircle className="w-4 h-4 mr-2" />
               Add Answer Option
             </Button>

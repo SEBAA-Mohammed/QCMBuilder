@@ -37,7 +37,7 @@ const upload = multer({
 // Test routes
 router.post('/', testController.createTest);
 router.get('/', testController.getTests);
-router.get('/:id', testController.getTestById);
+router.get('/edit', testController.getTestById);
 // router.put('/:id', testController.updateTest);
 // router.delete('/:id', testController.deleteTest);
 
