@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, BookOpen, Users, Activity, LogOut, Moon, Sun } from "lucide-react";
+import { PlusCircle, BookOpen, Users, Activity, LogOut, Moon, Sun, Trash2 } from "lucide-react";
 import axios from 'axios';
 import { Test } from '@/types/Test';
 import { useUser } from '@/context/userContext';
@@ -33,6 +33,20 @@ const TeacherDashboard = () => {
     const handleLogout = () => {
       setUser(null);
       navigate('/login');
+    };
+
+    const handleDeleteTest = async (testId: number) => {
+      try {
+        await axios.delete(`http://localhost:5000/api/tests/${testId}`);
+        setTests(tests.filter((test) => test.id !== testId));
+        setStats((prevStats) => ({
+          ...prevStats,
+          totalTests: prevStats.totalTests - 1
+        }));
+      } catch (err) {
+        // @ts-expect-error just a string err
+        setError(err.message);
+      }
     };
 
     const toggleTheme = () => {
@@ -153,21 +167,30 @@ const TeacherDashboard = () => {
                 <p className="py-4 text-center text-gray-500 dark:text-gray-400 col-span-2">No tests created yet</p>
               ) : (
                 tests.map((test: Test) => (
-                  <div key={test.id} className="p-4 border dark:border-gray-700 rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{test.title}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {test.status} • {formatDate(test.created_at)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <Button 
-                       onClick={() => navigate(`/edit-test/${test.id}`)}
-                      variant="outline" size="sm">Edit</Button>
-                      <Button variant="outline" size="sm">View Results</Button>
-                      <Button variant="outline" size="sm">Publish</Button>
-                    </div>
-                  </div>
+                  <div key={test.id} className="p-4 border dark:border-gray-700 rounded-lg flex justify-between items-center">
+  <div>
+    <h3 className="font-medium">{test.title}</h3>
+    <p className="text-sm text-gray-500 dark:text-gray-400">
+      {test.status} • {formatDate(test.created_at)}
+    </p>
+    <div className="flex gap-2 mt-3">
+      <Button 
+        onClick={() => navigate(`/edit-test/${test.id}`)}
+        variant="outline" 
+        size="sm">Edit</Button>
+      <Button variant="outline" size="sm">View Results</Button>
+      <Button variant="outline" size="sm">Publish</Button>
+    </div>
+  </div>
+  <Button
+    variant="destructive"
+    size="sm"
+    onClick={() => handleDeleteTest(test.id)}
+  >
+    <Trash2 className="w-4 h-4" />
+  </Button>
+</div>
+
                 ))
               )}
             </div>
