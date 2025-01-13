@@ -122,19 +122,18 @@ const CreateTest: React.FC = () => {
       setTestId(data.testId);
       setValidationErrors([]);
       const toast = Swal.mixin({
-                          toast: true,
-                          position: "bottom-end",
-                          showConfirmButton: false,
-                          timer: 3000,
-                          padding: "2em",
-                          timerProgressBar: true,
-                          
-                      });
-                      toast.fire({
-                          icon: "success",
-                          title: "Test Created , you can add questions now",
-                          padding: "2em",
-                      });
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
+        timer: 3000,
+        padding: "2em",
+        timerProgressBar: true,
+      });
+      toast.fire({
+        icon: "success",
+        title: "Test Created , you can add questions now",
+        padding: "2em",
+      });
     } catch (error) {
       console.error("Error creating test:", error);
       setValidationErrors(["Failed to create test. Please try again."]);
@@ -201,19 +200,18 @@ const CreateTest: React.FC = () => {
       setFileInputKey((prev) => prev + 1);
       setQuestionValidationErrors([]);
       const toast = Swal.mixin({
-                          toast: true,
-                          position: "bottom-end",
-                          showConfirmButton: false,
-                          timer: 3000,
-                          padding: "2em",
-                          timerProgressBar: true,
-                          
-                      });
-                      toast.fire({
-                          icon: "success",
-                          title: "Question added to test",
-                          padding: "2em",
-                      });
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
+        timer: 3000,
+        padding: "2em",
+        timerProgressBar: true,
+      });
+      toast.fire({
+        icon: "success",
+        title: "Question added to test",
+        padding: "2em",
+      });
     } catch (error) {
       console.error("Error saving question:", error);
       setQuestionValidationErrors([
@@ -224,45 +222,66 @@ const CreateTest: React.FC = () => {
 
   // Delete question and reorder remaining questions
   const deleteQuestion = async (questionId: number, orderNum: number) => {
-    if (!testId) return;
+    Swal.fire({
+      title: "Are you sure you want to delete this?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#0f172a",
+      confirmButtonText: "Yes",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        if (!testId) return;
 
-    try {
-      const deleteResponse = await fetch(
-        `http://localhost:5000/api/tests/${testId}/questions/${questionId}`,
-        {
-          method: "DELETE",
+        try {
+          const deleteResponse = await fetch(
+            `http://localhost:5000/api/tests/${testId}/questions/${questionId}`,
+            {
+              method: "DELETE",
+            }
+          );
+
+          if (!deleteResponse.ok) throw new Error("Failed to delete question");
+
+          // Update order numbers for remaining questions
+          const updatedQuestions = questions
+            .filter((q) => q.id !== questionId)
+            .map((q) => ({
+              ...q,
+              order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num,
+            }));
+
+          // Update order numbers in database
+          await Promise.all(
+            updatedQuestions.map((q) =>
+              fetch(
+                `http://localhost:5000/api/tests/${testId}/questions/${q.id}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    order_num: q.order_num,
+                  }),
+                }
+              )
+            )
+          );
+
+          setQuestions(updatedQuestions);
+        } catch (error) {
+          console.error("Error deleting question:", error);
         }
-      );
-
-      if (!deleteResponse.ok) throw new Error("Failed to delete question");
-
-      // Update order numbers for remaining questions
-      const updatedQuestions = questions
-        .filter((q) => q.id !== questionId)
-        .map((q) => ({
-          ...q,
-          order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num,
-        }));
-
-      // Update order numbers in database
-      await Promise.all(
-        updatedQuestions.map((q) =>
-          fetch(`http://localhost:5000/api/tests/${testId}/questions/${q.id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              order_num: q.order_num,
-            }),
-          })
-        )
-      );
-
-      setQuestions(updatedQuestions);
-    } catch (error) {
-      console.error("Error deleting question:", error);
-    }
+        Swal.fire({
+          confirmButtonColor:"#0f172a",
+          title: "Deleted!",
+          text: "The question has been deleted.",
+          icon: "success",
+        });
+      }
+    });
   };
 
   return (
@@ -458,15 +477,13 @@ const CreateTest: React.FC = () => {
               <Textarea
                 placeholder="Question content"
                 value={currentQuestion.content}
-                onChange={(e) =>{
+                onChange={(e) => {
                   setCurrentQuestion((prev) => ({
                     ...prev,
                     content: e.target.value,
                   }));
                   validateQuestion();
-                }
-                  
-                }
+                }}
               />
 
               {/* Add this new image input section */}

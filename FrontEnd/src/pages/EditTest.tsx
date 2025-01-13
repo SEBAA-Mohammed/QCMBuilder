@@ -56,7 +56,9 @@ const EditTest: React.FC = () => {
   useEffect(() => {
     const fetchTestData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${user?.id}`);
+        const response = await fetch(
+          `http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${user?.id}`
+        );
 
         if (!response.ok) throw new Error("Failed to fetch test");
 
@@ -152,19 +154,18 @@ const EditTest: React.FC = () => {
       if (!response.ok) throw new Error("Failed to update test");
       setValidationErrors([]);
       const toast = Swal.mixin({
-                                toast: true,
-                                position: "bottom-end",
-                                showConfirmButton: false,
-                                timer: 3000,
-                                padding: "2em",
-                                timerProgressBar: true,
-                                
-                            });
-                            toast.fire({
-                                icon: "success",
-                                title: "Test Updated Successfully",
-                                padding: "2em",
-                            });
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
+        timer: 3000,
+        padding: "2em",
+        timerProgressBar: true,
+      });
+      toast.fire({
+        icon: "success",
+        title: "Test Updated Successfully",
+        padding: "2em",
+      });
     } catch (error) {
       console.error("Error updating test:", error);
       setValidationErrors(["Failed to update test. Please try again."]);
@@ -248,43 +249,64 @@ const EditTest: React.FC = () => {
 
   // Delete question
   const deleteQuestion = async (questionId: number, orderNum: number) => {
-    try {
-      const deleteResponse = await fetch(
-        `http://localhost:5000/api/tests/${testId}/questions/${questionId}`,
-        {
-          method: "DELETE",
+    Swal.fire({
+      title: "Are you sure you want to delete this?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#0f172a",
+      confirmButtonText: "Yes",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const deleteResponse = await fetch(
+            `http://localhost:5000/api/tests/${testId}/questions/${questionId}`,
+            {
+              method: "DELETE",
+            }
+          );
+
+          if (!deleteResponse.ok) throw new Error("Failed to delete question");
+
+          // Update order numbers for remaining questions
+          const updatedQuestions = questions
+            .filter((q) => q.id !== questionId)
+            .map((q) => ({
+              ...q,
+              order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num,
+            }));
+
+          // Update order numbers in database
+          await Promise.all(
+            updatedQuestions.map((q) =>
+              fetch(
+                `http://localhost:5000/api/tests/${testId}/questions/${q.id}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    order_num: q.order_num,
+                  }),
+                }
+              )
+            )
+          );
+
+          setQuestions(updatedQuestions);
+        } catch (error) {
+          console.error("Error deleting question:", error);
         }
-      );
-
-      if (!deleteResponse.ok) throw new Error("Failed to delete question");
-
-      // Update order numbers for remaining questions
-      const updatedQuestions = questions
-        .filter((q) => q.id !== questionId)
-        .map((q) => ({
-          ...q,
-          order_num: q.order_num > orderNum ? q.order_num - 1 : q.order_num,
-        }));
-
-      // Update order numbers in database
-      await Promise.all(
-        updatedQuestions.map((q) =>
-          fetch(`http://localhost:5000/api/tests/${testId}/questions/${q.id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              order_num: q.order_num,
-            }),
-          })
-        )
-      );
-
-      setQuestions(updatedQuestions);
-    } catch (error) {
-      console.error("Error deleting question:", error);
-    }
+        Swal.fire({
+            confirmButtonColor:"#0f172a",
+          title: "Deleted!",
+          text: "The question has been deleted.",
+          icon: "success",
+        });
+      }
+    });
   };
 
   if (isLoading) {

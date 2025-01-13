@@ -16,7 +16,7 @@ import { Test } from "@/types/Test";
 import { useUser } from "@/context/userContext";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../components/theme-context";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 interface Stats {
   totalTests: number;
@@ -46,31 +46,35 @@ const TeacherDashboard = () => {
   };
 
   const handleDeleteTest = async (testId: number) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/tests/${testId}`);
-      setTests(tests.filter((test) => test.id !== testId));
-      setStats((prevStats) => ({
-        ...prevStats,
-        totalTests: prevStats.totalTests - 1,
-      }));
-      const toast = Swal.mixin({
-                    toast: true,
-                    position: "bottom-end",
-                    showConfirmButton: false,
-                    timer: 3000,
-                    padding: "2em",
-                    timerProgressBar: true,
-                    
-                });
-                toast.fire({
-                    icon: "success",
-                    title: "Test Deleted",
-                    padding: "2em",
-                });
-    } catch (err) {
-      // @ts-expect-error just a string err
-      setError(err.message);
-    }
+    Swal.fire({
+      title: "Are you sure you want to delete this?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#0f172a",
+      confirmButtonText: "Yes",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete(`http://localhost:5000/api/tests/${testId}`);
+          setTests(tests.filter((test) => test.id !== testId));
+          setStats((prevStats) => ({
+            ...prevStats,
+            totalTests: prevStats.totalTests - 1,
+          }));
+        } catch (err) {
+          // @ts-expect-error just a string err
+          setError(err.message);
+        }
+        Swal.fire({
+          title: "Deleted!",
+          confirmButtonColor:"#0f172a",
+          text: "Your test has been deleted.",
+          icon: "success",
+        });
+      }
+    });
   };
 
   const toggleTheme = () => {
