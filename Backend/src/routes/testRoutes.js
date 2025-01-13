@@ -3,6 +3,7 @@ const router = express.Router();
 const testController = require('../controllers/testController');
 const multer = require('multer');
 const path = require('path');
+const generateTestPDF = require('../controllers/generateTestPDF');
 
 // Configure multer for image uploads
 const storage = multer.diskStorage({
@@ -33,6 +34,18 @@ const upload = multer({
 router.post('/', testController.createTest);
 router.get('/', testController.getTests);
 router.get('/edit', testController.getTestById);
+// router.get('/:testId/pdf', generateTestPDF.generateTestPDF);
+router.get('/:testId/pdf', (req, res) => {
+    generateTestPDF(req, res).catch(err => {
+        console.error('PDF Generation Error:', err);
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: "Failed to generate PDF"
+            });
+        }
+    });
+});
 router.put('/:id', testController.updateTest);
 router.delete('/:id', testController.deleteTest);
 

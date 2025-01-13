@@ -141,7 +141,6 @@ const testController = {
     }
   },
   getTestById: async (req, res) => {
-    console.log(req.query);
     const connection = await pool.getConnection();
     try {
       const { testId, teacherId } = req.query;

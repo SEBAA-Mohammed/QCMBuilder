@@ -45,6 +45,23 @@ const TeacherDashboard = () => {
     navigate("/login");
   };
 
+  const handleDownloadPDF = async (testId : number, testTitle : string) => {
+  try {
+    const response = await fetch(`/api/tests/${testId}/pdf`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${testTitle}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+  }
+};
+
   const handleDeleteTest = async (testId: number) => {
     Swal.fire({
       title: "Are you sure you want to delete this?",
@@ -222,8 +239,8 @@ const TeacherDashboard = () => {
                       >
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm">
-                        View Results
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadPDF(test.id, test.title)}>
+                        Download PDF
                       </Button>
                       <Button variant="outline" size="sm">
                         Publish
