@@ -82,9 +82,11 @@ const testController = {
     try {
       const { testId } = req.params;
       const { content, type, points, answers } = req.body;
-      
+
       // Get the photo path if an image was uploaded
-      const photo_path = req.file ? `/uploads/questions/${req.file.filename}` : null;
+      const photo_path = req.file
+        ? `/uploads/questions/${req.file.filename}`
+        : null;
 
       await connection.beginTransaction();
 
@@ -102,7 +104,8 @@ const testController = {
       );
 
       // Parse answers from string back to array if it's a string
-      const parsedAnswers = typeof answers === 'string' ? JSON.parse(answers) : answers;
+      const parsedAnswers =
+        typeof answers === "string" ? JSON.parse(answers) : answers;
 
       // Insert answers
       for (const answer of parsedAnswers) {
@@ -124,14 +127,14 @@ const testController = {
         success: true,
         questionId: questionResult.insertId,
         photo_path: photo_path,
-        message: "Question added successfully"
+        message: "Question added successfully",
       });
     } catch (error) {
       await connection.rollback();
       console.error("Error adding question:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to add question"
+        message: "Failed to add question",
       });
     } finally {
       connection.release();
@@ -152,7 +155,7 @@ const testController = {
       if (test.length === 0) {
         return res.status(404).json({
           success: false,
-          message: "Test not found"
+          message: "Test not found",
         });
       }
 
@@ -177,22 +180,22 @@ const testController = {
               return {
                 id: parseInt(id),
                 content,
-                is_correct: is_correct === "1"
+                is_correct: is_correct === "1",
               };
             })
-          : []
+          : [],
       }));
 
       res.json({
         success: true,
         test: test[0],
-        questions: formattedQuestions
+        questions: formattedQuestions,
       });
     } catch (error) {
       console.error("Error fetching test:", error);
       res.status(500).json({
         success: false,
-        message: "Failed to fetch test details"
+        message: "Failed to fetch test details",
       });
     } finally {
       connection.release();
@@ -246,6 +249,173 @@ const testController = {
       res.status(500).json({
         success: false,
         message: "Failed to delete question",
+      });
+    } finally {
+      connection.release();
+    }
+  },
+  updateTest: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      const { id } = req.params;
+      const {
+        title,
+        description,
+        time_limit,
+        passing_score,
+        is_randomized,
+        attempts_allowed,
+        status,
+      } = req.body;
+
+      await connection.beginTransaction();
+
+      const [result] = await connection.query(
+        `UPDATE tests SET 
+          title = ?, 
+          description = ?, 
+          time_limit = ?, 
+          passing_score = ?, 
+          is_randomized = ?, 
+          attempts_allowed = ?, 
+          status = ? 
+       WHERE id = ?`,
+        [
+          title,
+          description,
+          time_limit,
+          passing_score,
+          is_randomized,
+          attempts_allowed,
+          status,
+          id,
+        ]
+      );
+
+      await connection.commit();
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Test not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Test updated successfully",
+      });
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error updating test:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update test",
+      });
+    } finally {
+      connection.release();
+    }
+  },
+  deleteTest: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      const { id } = req.params;
+
+      await connection.beginTransaction();
+
+      const [result] = await connection.query(
+        "DELETE FROM tests WHERE id = ?",
+        [id]
+      );
+
+      await connection.commit();
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Test not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Test deleted successfully",
+      });
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error deleting test:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete test",
+      });
+    } finally {
+      connection.release();
+    }
+  },
+  updateQuestion: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      const { testId, questionId } = req.params;
+      const { content, type, points, answers } = req.body;
+
+      const photo_path = req.file
+        ? `/uploads/questions/${req.file.filename}`
+        : null;
+
+      await connection.beginTransaction();
+
+      const [result] = await connection.query(
+        `UPDATE questions SET 
+          content = ?, 
+          type = ?, 
+          points = ?, 
+          photo_path = IFNULL(?, photo_path) 
+       WHERE id = ? AND test_id = ?`,
+        [content, type, points, photo_path, questionId, testId]
+      );
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          message: "Question not found",
+        });
+      }
+
+      // Delete existing answers
+      await connection.query("DELETE FROM answers WHERE question_id = ?", [
+        questionId,
+      ]);
+
+      // Insert updated answers
+      const parsedAnswers =
+        typeof answers === "string" ? JSON.parse(answers) : answers;
+
+      for (const answer of parsedAnswers) {
+        await connection.query(
+          `INSERT INTO answers (question_id, content, is_correct, order_num)
+         VALUES (?, ?, ?, ?)`,
+          [
+            questionId,
+            answer.content,
+            answer.is_correct,
+            parsedAnswers.indexOf(answer) + 1,
+          ]
+        );
+      }
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: "Question updated successfully",
+      });
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error updating question:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update question",
       });
     } finally {
       connection.release();

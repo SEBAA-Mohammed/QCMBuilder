@@ -29,22 +29,17 @@ const upload = multer({
   }
 });
 
-// const { authenticateToken } = require('../controllers/authController');
-
-// Apply authentication middleware to all routes
-// router.use(authenticateToken);
-
 // Test routes
 router.post('/', testController.createTest);
 router.get('/', testController.getTests);
 router.get('/edit', testController.getTestById);
-// router.put('/:id', testController.updateTest);
-// router.delete('/:id', testController.deleteTest);
+router.put('/:id', testController.updateTest);
+router.delete('/:id', testController.deleteTest);
 
 // Question routes
 router.post('/:testId/questions', upload.single('photo'), testController.addQuestion);
-// router.put('/:testId/questions/:questionId', testController.updateQuestion);
-// router.delete('/:testId/questions/:questionId', testController.deleteQuestion);
-// router.put('/:testId/questions/:questionId/order', testController.updateQuestionOrder);
+router.put('/:testId/questions/:questionId', testController.updateQuestion);
+router.delete('/:testId/questions/:questionId', testController.deleteQuestion);
+router.put('/:testId/questions/:questionId/order', testController.updateQuestionOrder);
 
 module.exports = router;
