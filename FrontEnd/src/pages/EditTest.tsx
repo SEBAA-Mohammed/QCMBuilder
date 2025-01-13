@@ -24,6 +24,7 @@ const EditTest: React.FC = () => {
 
   const [testDetails, setTestDetails] = useState({
     title: "",
+    status: "draft",
     description: "",
     time_limit: 60,
     passing_score: 60,
@@ -67,6 +68,7 @@ const EditTest: React.FC = () => {
         // Set test details from data.test
         setTestDetails({
           title: data.test.title,
+          status: data.test.status,
           description: data.test.description,
           time_limit: data.test.time_limit,
           passing_score: data.test.passing_score,
