@@ -17,6 +17,11 @@ import { useUser } from "@/context/userContext";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../components/theme-context";
 import Swal from "sweetalert2";
+import TestDocument from "@/components/PdfGeneration";
+import { Question } from "@/types/QuestionAnswer";
+import { pdf } from "@react-pdf/renderer";
+import { saveAs } from 'file-saver';
+
 
 interface Stats {
   totalTests: number;
@@ -44,52 +49,34 @@ const TeacherDashboard = () => {
     setUser(null);
     navigate("/login");
   };
-
-  const handleDownloadPDF = async (testId: number, testTitle: string) => {
-  try {
-    console.log('Starting PDF download for test:', testId);
-    
-    // Make sure the URL matches your Vite proxy configuration
-    const response = await fetch(`http://localhost:5000/api/tests/${testId}/pdf`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/pdf',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    });
-
-    // For debugging
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const clone = response.clone();
-      const text = await clone.text();
-      console.error('Error response:', text);
-      throw new Error(`Failed to download PDF: ${response.status}`);
+  const handleDownload = async (testId : number) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${user?.id}`
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        await handleDownloadPDF(data.test, data.questions);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
     }
+  };
 
-    const blob = await response.blob();
-    console.log('Received blob size:', blob.size, 'bytes');
-    console.log('Blob type:', blob.type);
-
-    if (blob.type !== 'application/pdf') {
-      throw new Error('Received non-PDF response: ' + blob.type);
+    const handleDownloadPDF = async (test: Test, questions: Question[]) => {
+    try {
+      // Generate PDF blob
+      const blob = await pdf(
+        <TestDocument test={test} questions={questions} />
+      ).toBlob();
+      
+      // Save the PDF file
+      saveAs(blob, `${test.title}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
     }
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${testTitle}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-  } catch (error) {
-    console.error('Error downloading PDF:', error);
-  }
-};
+  };
   const handleDeleteTest = async (testId: number) => {
     Swal.fire({
       title: "Are you sure you want to delete this?",
@@ -267,7 +254,7 @@ const TeacherDashboard = () => {
                       >
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDownloadPDF(test.id, test.title)}>
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(test.id)}>
                         Download PDF
                       </Button>
                       <Button variant="outline" size="sm">
