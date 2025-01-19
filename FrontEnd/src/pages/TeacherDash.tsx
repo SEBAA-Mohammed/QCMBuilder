@@ -79,6 +79,34 @@ const TeacherDashboard = () => {
   };
   // const [isLoading, setIsLoading] = useState(false);
 
+const handleDownloadHTML = async (testId : number ,title : string) => {
+  // setIsLoading(true);
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/tests/${testId}/html`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}_html.zip`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+  } catch (error) {
+    console.error('Error downloading SCORM package:', error);
+    // Add your error handling here, e.g., showing a toast notification
+  } finally {
+    // setIsLoading(false);
+  }
+};
 const handleDownloadSCORM = async (testId : number ,title : string) => {
   // setIsLoading(true);
   try {
@@ -287,8 +315,11 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
                       <Button variant="outline" size="sm" onClick={() => handleDownload(test.id)}>
                         Download PDF
                       </Button>
-                      <Button  size="sm" onClick={() => handleDownloadSCORM(test.id , test.title)}>
+                      <Button  variant="outline" size="sm" onClick={() => handleDownloadSCORM(test.id , test.title)}>
                         Download SCORM
+                      </Button>
+                      <Button  variant="outline" size="sm" onClick={() => handleDownloadHTML(test.id , test.title)}>
+                        Download HTML
                       </Button>
                       <Button variant="outline" size="sm">
                         Publish

@@ -4,6 +4,7 @@ const testController = require('../controllers/testController');
 const multer = require('multer');
 const path = require('path');
 const generateTestScorm = require('../controllers/generateTestScorm');
+const { generateTestHTML } = require('../controllers/generateTestHtml');
 
 // Configure multer for image uploads
 const storage = multer.diskStorage({
@@ -35,6 +36,7 @@ router.post('/', testController.createTest);
 router.get('/', testController.getTests);
 router.get('/edit', testController.getTestById);
 router.get('/:testId/scorm', generateTestScorm.generateTestSCORM);
+router.get('/:testId/html', generateTestHTML);
 
 
 router.put('/:id', testController.updateTest);
