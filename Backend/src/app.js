@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const authRoutes = require('./routes/authRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 const testRoutes = require('./routes/testRoutes');  
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/teacher', teacherRoutes);
+app.use('/api/student', studentRoutes);
 app.use('/api/tests', testRoutes);  
 app.use('/uploads', express.static('public/uploads'));
 

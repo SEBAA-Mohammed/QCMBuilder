@@ -66,7 +66,7 @@ function LoginForm() {
         setUser(response.data.user);
         navigate('/dashboard');
       } else {
-        // Handle student login or other roles
+        navigate('/studentDashboard');
       }
     } catch (err) {
       setError('Invalid email or password');
