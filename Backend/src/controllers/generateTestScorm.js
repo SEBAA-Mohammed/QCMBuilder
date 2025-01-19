@@ -53,7 +53,7 @@ const generateTestSCORM = async (req, res) => {
         // Copy question images if they exist
         questions.forEach(question => {
             if (question.photo_path) {
-                const imagePath = path.join(__dirname, '../public', question.photo_path);
+                const imagePath = path.join(__dirname, '../../public', question.photo_path);
                 if (fs.existsSync(imagePath)) {
                     const imageBuffer = fs.readFileSync(imagePath);
                     const imageName = path.basename(question.photo_path);

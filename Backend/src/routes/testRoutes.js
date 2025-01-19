@@ -36,6 +36,7 @@ router.get('/', testController.getTests);
 router.get('/edit', testController.getTestById);
 router.get('/:testId/scorm', generateTestScorm.generateTestSCORM);
 
+
 router.put('/:id', testController.updateTest);
 router.delete('/:id', testController.deleteTest);
 

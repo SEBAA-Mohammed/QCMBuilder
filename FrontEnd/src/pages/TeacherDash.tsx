@@ -77,10 +77,10 @@ const TeacherDashboard = () => {
       console.error('Error generating PDF:', error);
     }
   };
-  const [isLoading, setIsLoading] = useState(false);
+  // const [isLoading, setIsLoading] = useState(false);
 
 const handleDownloadSCORM = async (testId : number ,title : string) => {
-  setIsLoading(true);
+  // setIsLoading(true);
   try {
     const response = await fetch(
       `http://localhost:5000/api/tests/${testId}/scorm`
@@ -104,7 +104,7 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
     console.error('Error downloading SCORM package:', error);
     // Add your error handling here, e.g., showing a toast notification
   } finally {
-    setIsLoading(false);
+    // setIsLoading(false);
   }
 };
   const handleDeleteTest = async (testId: number) => {
@@ -287,9 +287,7 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
                       <Button variant="outline" size="sm" onClick={() => handleDownload(test.id)}>
                         Download PDF
                       </Button>
-                      <Button className={`px-4 py-2 text-white rounded ${
-      isLoading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
-    }`} variant="outline" size="sm" onClick={() => handleDownloadSCORM(test.id , test.title)}>
+                      <Button  size="sm" onClick={() => handleDownloadSCORM(test.id , test.title)}>
                         Download SCORM
                       </Button>
                       <Button variant="outline" size="sm">
