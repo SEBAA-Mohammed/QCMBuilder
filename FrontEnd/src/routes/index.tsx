@@ -6,6 +6,7 @@ import TeacherDashboard from '../pages/TeacherDash';
 import CreateTest from '../pages/CreateTest';
 import EditTest from '@/pages/EditTest';
 import StudentDashboard from '@/pages/StudentDash';
+import TakeTest from '@/pages/TakeTest';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -17,6 +18,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/studentDashboard" element={<StudentDashboard />} />
         <Route path="/create-test" element={<CreateTest />} />
         <Route path="/edit-test/:testId" element={<EditTest />} />
+        <Route path="/take-test/:testId/:teacherId" element={<TakeTest />} />
       </Routes>
     </Router>
   );

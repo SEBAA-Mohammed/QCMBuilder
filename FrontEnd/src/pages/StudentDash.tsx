@@ -76,8 +76,8 @@ const StudentDashboard = () => {
     }).format(date);
   };
 
-  const handleStartTest = (testId: number) => {
-    navigate(`/take-test/${testId}`);
+  const handleStartTest = (testId: number , teacher_id : number) => {
+    navigate(`/take-test/${testId}/${teacher_id}`);
   };
 
   const filteredTests = availableTests.filter(test =>
@@ -223,7 +223,7 @@ const StudentDashboard = () => {
                     Passing Score: {test.passing_score}%
                   </p>
                   <Button
-                    onClick={() => handleStartTest(test.id)}
+                    onClick={() => handleStartTest(test.id , test.teacher_id)}
                     className="w-full"
                   >
                     Start Test

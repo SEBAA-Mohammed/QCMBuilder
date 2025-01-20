@@ -140,6 +140,101 @@ const testController = {
       connection.release();
     }
   },
+  getTestByIdS: async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+      // Get testId from params instead of query
+      const testId = req.params.testId || req.query.testId;
+      if (!testId) {
+        return res.status(400).json({
+          success: false,
+          message: "Test ID is required",
+        });
+      }
+
+      console.log("Fetching test with ID:", testId); // Debug log
+
+      // Get test details
+      const [test] = await connection.query(
+        "SELECT * FROM tests WHERE id = ?",
+        [testId]
+      );
+
+      console.log("Test query result:", test); // Debug log
+
+      if (!test || test.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Test not found",
+        });
+      }
+
+      // Get questions with answers and photo_path
+      const [questions] = await connection.query(
+        `SELECT q.*, 
+                GROUP_CONCAT(
+                  CASE 
+                    WHEN a.id IS NOT NULL 
+                    THEN CONCAT(a.id, '::', a.content, '::', a.is_correct) 
+                    ELSE NULL 
+                  END
+                  SEPARATOR '||'
+                ) as answers
+         FROM questions q
+         LEFT JOIN answers a ON q.id = a.question_id
+         WHERE q.test_id = ?
+         GROUP BY q.id, q.content, q.type, q.points, q.photo_path, q.order_num
+         ORDER BY q.order_num`,
+        [testId]
+      );
+
+      console.log("Questions query result:", questions); // Debug log
+
+      // Format the answers
+      const formattedQuestions = questions.map((q) => {
+        const questionData = {
+          id: q.id,
+          content: q.content,
+          type: q.type,
+          points: q.points,
+          photo_path: q.photo_path,
+          order_num: q.order_num,
+          answers: [],
+        };
+
+        if (q.answers) {
+          questionData.answers = q.answers.split("||").map((a) => {
+            const [id, content, is_correct] = a.split("::");
+            return {
+              id: parseInt(id),
+              content,
+              is_correct: is_correct === "1",
+            };
+          });
+        }
+
+        return questionData;
+      });
+
+      res.json({
+        success: true,
+        test: {
+          ...test[0],
+          questions: formattedQuestions,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching test:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch test details",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    } finally {
+      connection.release();
+    }
+  },
   getTestById: async (req, res) => {
     const connection = await pool.getConnection();
     try {
