@@ -42,6 +42,9 @@ const StudentDashboard = () => {
   if (!user) {
     navigate("/login");
   }
+  if(user?.role !== "student") {
+    navigate("/dashboard");
+  }
 
   const [availableTests, setAvailableTests] = useState<Test[]>([]);
   const [testHistory, setTestHistory] = useState<TestAttempt[]>([]);
@@ -101,6 +104,7 @@ const StudentDashboard = () => {
         setStats(statsResponse.data);
         setAvailableTests(testsResponse.data);
         setTestHistory(historyResponse.data);
+        console.log(availableTests);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       }

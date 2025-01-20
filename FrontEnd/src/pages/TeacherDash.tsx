@@ -36,6 +36,9 @@ const TeacherDashboard = () => {
   if (!user) {
     navigate("/login");
   }
+  if (user?.role !== "teacher") {
+    navigate("/studentDashboard");
+  }
 
   const [tests, setTests] = useState<Test[]>([]);
   const [stats, setStats] = useState<Stats>({

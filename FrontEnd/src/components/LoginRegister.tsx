@@ -66,6 +66,7 @@ function LoginForm() {
         setUser(response.data.user);
         navigate('/dashboard');
       } else {
+        setUser(response.data.user);
         navigate('/studentDashboard');
       }
     } catch (err) {

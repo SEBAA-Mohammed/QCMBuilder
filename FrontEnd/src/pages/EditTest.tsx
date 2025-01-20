@@ -22,6 +22,9 @@ const EditTest: React.FC = () => {
   if (!user) {
     navigate("/login");
   }
+  if (user?.role !== "teacher") {
+    navigate("/studentDashboard");
+  }
 
   const [testDetails, setTestDetails] = useState({
     title: "",
