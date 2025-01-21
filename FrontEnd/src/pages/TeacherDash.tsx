@@ -280,7 +280,7 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             <Activity className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageScore}%</div>
+            <div className="text-2xl font-bold">{(Number(stats.averageScore) || 0).toFixed(1)}%</div>
           </CardContent>
         </Card>
       </div>

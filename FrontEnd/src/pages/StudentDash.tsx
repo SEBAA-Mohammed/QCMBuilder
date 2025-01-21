@@ -43,7 +43,7 @@ const StudentDashboard = () => {
     navigate("/login");
   }
   if(user?.role !== "student") {
-    navigate("/dashboard");
+    navigate("/login");
   }
 
   const [availableTests, setAvailableTests] = useState<Test[]>([]);

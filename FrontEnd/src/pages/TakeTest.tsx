@@ -138,14 +138,9 @@ const TakeTest: React.FC = () => {
         setLoading(false);
       }
     };
-    
 
     initializeTest();
   }, [user, testId, teacherId, navigate, attemptId]);
-
-  
-
-
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -161,12 +156,12 @@ const TakeTest: React.FC = () => {
   };
   useEffect(() => {
     if (!testData || timeRemaining <= 0) return;
-  
+
     // Initialize time remaining once based on testData if it's not set yet
     if (timeRemaining === null) {
       setTimeRemaining(testData.time_limit * 60);
     }
-  
+
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
@@ -177,28 +172,32 @@ const TakeTest: React.FC = () => {
         return prev - 1;
       });
     }, 1000);
-  
+
     // Cleanup on component unmount or when timeRemaining reaches 0
     return () => clearInterval(timer);
   }, [timeRemaining, testData]); // Run the effect when timeRemaining or testData changes
-  
 
   const handleTimeUp = async () => {
     setShowTimeUpDialog(true);
     await submitTest(true);
   };
 
-  const submitTest = async (isTimeUp : boolean= false) => {
+  const submitTest = async (isTimeUp: boolean = false) => {
     try {
-      const answers = Object.entries(selectedAnswers).map(([questionId, answerId]) => ({
-        questionId: parseInt(questionId),
-        selectedAnswerId: answerId
-      }));
+      const answers = Object.entries(selectedAnswers).map(
+        ([questionId, answerId]) => ({
+          questionId: parseInt(questionId),
+          selectedAnswerId: answerId,
+        })
+      );
 
-      const response = await axios.post(`http://localhost:5000/api/student/test-attempts/submit`, {
-        attemptId,
-        answers
-      });
+      const response = await axios.post(
+        `http://localhost:5000/api/student/test-attempts/submit`,
+        {
+          attemptId,
+          answers,
+        }
+      );
 
       setSubmissionResult(response.data);
       setShowScoreDialog(true);
@@ -208,10 +207,9 @@ const TakeTest: React.FC = () => {
         setShowTimeUpDialog(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit test');
+      setError(err instanceof Error ? err.message : "Failed to submit test");
     }
   };
-
 
   if (loading)
     return (
@@ -237,9 +235,13 @@ const TakeTest: React.FC = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">{testData.title}</h1>
-          <div className="flex items-center gap-2 text-red-500">
+          <div className="flex items-center gap-2">
             <Timer className="w-5 h-5" />
-            <span className="font-mono text-lg">
+            <span
+              className={`font-mono text-lg ${
+                timeRemaining <= 60 ? "text-red-500" : "text-primar"
+              }`}
+            >
               {formatTime(timeRemaining)}
             </span>
           </div>
@@ -335,7 +337,9 @@ const TakeTest: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={()=>submitTest()}>Submit</AlertDialogAction>
+            <AlertDialogAction onClick={() => submitTest()}>
+              Submit
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -348,9 +352,13 @@ const TakeTest: React.FC = () => {
               {submissionResult?.testTitle} - Test Results
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
-              <p className={`text-lg font-semibold ${
-                submissionResult?.status === 'success' ? 'text-green-600' : 'text-red-600'
-              }`}>
+              <p
+                className={`text-lg font-semibold ${
+                  submissionResult?.status === "success"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
                 {submissionResult?.message}
               </p>
               <div className="mt-4 text-sm text-gray-600">
@@ -360,7 +368,7 @@ const TakeTest: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => navigate('/studentDashboard')}>
+            <AlertDialogAction onClick={() => navigate("/studentDashboard")}>
               Return to Dashboard
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -379,9 +387,13 @@ const TakeTest: React.FC = () => {
               Your time has expired. Your test has been automatically submitted.
               {submissionResult && (
                 <div className="mt-4">
-                  <p className={`font-semibold ${
-                    submissionResult.status === 'success' ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <p
+                    className={`font-semibold ${
+                      submissionResult.status === "success"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {submissionResult.message}
                   </p>
                 </div>
@@ -389,7 +401,7 @@ const TakeTest: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => navigate('/studentDashboard')}>
+            <AlertDialogAction onClick={() => navigate("/studentDashboard")}>
               Return to Dashboard
             </AlertDialogAction>
           </AlertDialogFooter>
