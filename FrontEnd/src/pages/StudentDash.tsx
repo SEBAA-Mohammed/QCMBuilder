@@ -261,7 +261,8 @@ const StudentDashboard = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold">
-                        {attempt.score.toFixed(1)}%
+                      {(attempt.score ?? 0).toFixed(1)}%
+
                       </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {attempt.status}

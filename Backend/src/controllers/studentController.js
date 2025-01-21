@@ -79,134 +79,139 @@ const getTestHistory = async (req, res) => {
 
 const startTestAttempt = async (req, res) => {
   const { studentId, testId } = req.body;
-  const MAX_RETRIES = 3;
-  let retryCount = 0;
+  const connection = await pool.getConnection();
+  
+  try {
+    // First get test info and check attempts
+    const [testInfo] = await connection.query(
+      `SELECT attempts_allowed, status 
+       FROM tests 
+       WHERE id = ?`,
+      [testId]
+    );
 
-  const attemptInsert = async () => {
+    if (!testInfo.length) {
+      await connection.release();
+      return res.status(404).json({ error: "Test not found" });
+    }
+
+    if (testInfo[0].status !== 'draft') {
+      await connection.release();
+      return res.status(400).json({ error: "Test is not available" });
+    }
+
+    const [attempts] = await connection.query(
+      `SELECT COUNT(*) as attemptCount
+       FROM test_attempts
+       WHERE student_id = ? 
+       AND test_id = ? 
+       AND status != 'expired'`,
+      [studentId, testId]
+    );
+
+    if (attempts[0].attemptCount >= testInfo[0].attempts_allowed) {
+      await connection.release();
+      return res.status(400).json({
+        error: "Maximum number of attempts reached for this test"
+      });
+    }
+
+    // Check for active attempts
+    const [activeAttempt] = await connection.query(
+      `SELECT id 
+       FROM test_attempts 
+       WHERE student_id = ? 
+       AND test_id = ? 
+       AND status = 'in_progress'`,
+      [studentId, testId]
+    );
+
+    if (activeAttempt.length > 0) {
+      await connection.release();
+      return res.status(409).json({
+        error: "You have an active attempt in progress",
+        attemptId: activeAttempt[0].id
+      });
+    }
+
     try {
-      // First get test info and check attempts - outside transaction
-      const [testInfo] = await pool.query(
-        `SELECT attempts_allowed 
-           FROM tests 
-           WHERE id = ?`,
-        [testId]
-      );
-
-      const [attempts] = await pool.query(
-        `SELECT COUNT(*) as attemptCount
-           FROM test_attempts
-           WHERE student_id = ? 
-           AND test_id = ? 
-           AND status != 'expired'`,
-        [studentId, testId]
-      );
-
-      if (attempts[0].attemptCount >= testInfo[0].attempts_allowed) {
-        return res.status(400).json({
-          error: "Maximum number of attempts reached for this test",
-        });
-      }
-
-      // Check for active attempts - outside transaction
-      const [activeAttempt] = await pool.query(
-        `SELECT id 
-           FROM test_attempts 
-           WHERE student_id = ? 
-           AND test_id = ? 
-           AND status = 'in_progress'`,
-        [studentId, testId]
-      );
-
-      if (activeAttempt.length > 0) {
-        return res.status(409).json({
-          error: "You have an active attempt in progress",
-          attemptId: activeAttempt[0].id,
-        });
-      }
-
-      // Start a shorter transaction just for the insert
-      await pool.query("START TRANSACTION");
+      await connection.beginTransaction();
 
       // Double-check active attempts inside transaction
-      const [doubleCheck] = await pool.query(
+      const [doubleCheck] = await connection.query(
         `SELECT id 
-           FROM test_attempts 
-           WHERE student_id = ? 
-           AND test_id = ? 
-           AND status = 'in_progress'
-           FOR UPDATE`, // Add row-level locking
+         FROM test_attempts 
+         WHERE student_id = ? 
+         AND test_id = ? 
+         AND status = 'in_progress'
+         FOR UPDATE`,
         [studentId, testId]
       );
 
       if (doubleCheck.length > 0) {
-        await pool.query("ROLLBACK");
+        await connection.rollback();
+        await connection.release();
         return res.status(409).json({
           error: "You have an active attempt in progress",
-          attemptId: doubleCheck[0].id,
+          attemptId: doubleCheck[0].id
         });
       }
 
       // Create new test attempt
-      const [result] = await pool.query(
+      const [result] = await connection.query(
         `INSERT INTO test_attempts (test_id, student_id, start_time, status)
-           VALUES (?, ?, CURRENT_TIMESTAMP, 'in_progress')`,
+         VALUES (?, ?, CURRENT_TIMESTAMP, 'in_progress')`,
         [testId, studentId]
       );
 
-      await pool.query("COMMIT");
+      await connection.commit();
 
-      // Get questions and answers outside of transaction
-      const [questions] = await pool.query(
-        `SELECT q.id, q.content, q.type, q.points, q.photo_path
-           FROM questions q
-           WHERE q.test_id = ?
-           ORDER BY q.order_num`,
+      // Get questions with answers
+      const [questions] = await connection.query(
+        `SELECT 
+           q.id, 
+           q.content, 
+           q.type, 
+           q.points, 
+           q.photo_path,
+           GROUP_CONCAT(
+             JSON_OBJECT(
+               'id', a.id,
+               'content', a.content
+             )
+           ) as answers
+         FROM questions q
+         LEFT JOIN answers a ON q.id = a.question_id
+         WHERE q.test_id = ?
+         GROUP BY q.id
+         ORDER BY q.order_num`,
         [testId]
       );
 
-      // Get answers for each question
-      for (let question of questions) {
-        const [answers] = await pool.query(
-          `SELECT id, content
-             FROM answers
-             WHERE question_id = ?
-             ORDER BY order_num`,
-          [question.id]
-        );
-        question.answers = answers;
-      }
+      // Process the questions to parse the JSON answers
+      const processedQuestions = questions.map(q => ({
+        ...q,
+        answers: JSON.parse(`[${q.answers}]`)
+      }));
 
+      await connection.release();
       return res.json({
         attemptId: result.insertId,
-        questions: questions,
+        questions: processedQuestions
       });
+
     } catch (error) {
-      await pool.query("ROLLBACK");
+      await connection.rollback();
       throw error;
     }
-  };
 
-  // Retry loop
-  while (retryCount < MAX_RETRIES) {
-    try {
-      return await attemptInsert();
-    } catch (error) {
-      retryCount++;
-
-      if (error.code === "ER_LOCK_DEADLOCK" && retryCount < MAX_RETRIES) {
-        // Wait for a short random time before retrying
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * 1000)
-        );
-        continue;
-      }
-
-      console.error(error);
-      return res.status(500).json({
-        error: error.message,
-        retryCount,
-      });
-    }
+  } catch (error) {
+    await connection.release();
+    console.error('Start test attempt error:', error);
+    res.status(500).json({ 
+      error: "Failed to start test attempt",
+      details: error.message
+    });
   }
 };
 

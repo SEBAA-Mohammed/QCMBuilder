@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,92 +43,98 @@ interface TestData {
 }
 
 const TakeTest = () => {
-  const { testId , teacherId} = useParams();
+  const { testId, teacherId } = useParams();
   const navigate = useNavigate();
   const { user } = useUser();
   if (!user) {
     navigate("/login");
   }
-  if(user?.role !== "student") {
+  if (user?.role !== "student") {
     navigate("/dashboard");
   }
-  
+
   const [testData, setTestData] = useState<TestData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, number>
+  >({});
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const initializeTest = useCallback(async () => {
-    if (!user?.id || !testId || initialized) return;
-    
-    try {
-      setLoading(true);
-      
-      // First get the test details
-      const testResponse = await axios.get(`http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${teacherId}`);
-      const test = testResponse.data;
-      
-      // Then start the attempt
-      const response = await axios.post(`http://localhost:5000/api/student/test-attempts/start`, {
-        studentId: user.id,
-        testId
-      });
-
-      const { attemptId: newAttemptId, questions } = response.data;
-      
-      let processedQuestions = questions;
-      if (test.is_randomized) {
-        processedQuestions = [...questions].sort(() => Math.random() - 0.5);
-      }
-
-      setTestData({
-        ...test,
-        questions: processedQuestions
-      });
-      setAttemptId(newAttemptId);
-      setTimeRemaining(test.time_limit * 60);
-      setInitialized(true);
-      
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
-        // If there's an existing attempt, use it
-        const existingAttemptId = err.response.data.attemptId;
-        if (existingAttemptId) {
-          // You might want to redirect to the existing attempt or handle it differently
-          setError("You already have an active attempt for this test.");
-          navigate('/student-dashboard');
-        }
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to load test');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, testId, initialized, navigate]);
 
   useEffect(() => {
+    // Basic validation checks
     if (!user) {
       navigate("/login");
       return;
     }
-    
+
     if (user.role !== "student") {
       navigate("/dashboard");
       return;
     }
 
-    initializeTest();
-  }, [user, navigate, initializeTest]);
+    // Initialize test data
+    const initializeTest = async () => {
+      if (!user?.id || !testId || attemptId) return; // Skip if already initialized
 
+      try {
+        setLoading(true);
+
+        // First get the test details
+        const testResponse = await axios.get(
+          `http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${teacherId}`
+        );
+        const test = testResponse.data;
+
+        try {
+          // Then start the attempt
+          const response = await axios.post(
+            `http://localhost:5000/api/student/test-attempts/start`,
+            {
+              studentId: user.id,
+              testId,
+            }
+          );
+
+          const { attemptId: newAttemptId, questions } = response.data;
+
+          let processedQuestions = questions;
+          if (test.is_randomized) {
+            processedQuestions = [...questions].sort(() => Math.random() - 0.5);
+          }
+
+          setTestData({
+            ...test,
+            questions: processedQuestions,
+          });
+          setAttemptId(newAttemptId);
+          setTimeRemaining(test.time_limit * 60);
+        } catch (err) {
+          if (axios.isAxiosError(err) && err.response?.status === 409) {
+            // If there's an existing attempt, redirect to dashboard
+            setError("You already have an active attempt for this test.");
+            navigate("/studentDashboard");
+            return;
+          }
+          throw err; // Re-throw other errors
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load test");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeTest();
+  }, [user, testId, teacherId, navigate, attemptId]);
   useEffect(() => {
     if (timeRemaining > 0) {
       const timer = setInterval(() => {
-        setTimeRemaining(prev => {
+        setTimeRemaining((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
             handleTimeUp();
@@ -150,42 +156,58 @@ const TakeTest = () => {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   const handleAnswerSelect = (questionId: number, answerId: number) => {
-    setSelectedAnswers(prev => ({
+    setSelectedAnswers((prev) => ({
       ...prev,
-      [questionId]: answerId
+      [questionId]: answerId,
     }));
   };
 
   const submitTest = async () => {
     try {
-      const answers = Object.entries(selectedAnswers).map(([questionId, answerId]) => ({
-        questionId: parseInt(questionId),
-        selectedAnswerId: answerId
-      }));
+      const answers = Object.entries(selectedAnswers).map(
+        ([questionId, answerId]) => ({
+          questionId: parseInt(questionId),
+          selectedAnswerId: answerId,
+        })
+      );
 
-      await axios.post(`http://localhost:5000/api/student/test-attempts/submit`, {
-        attemptId,
-        answers
-      });
+      await axios.post(
+        `http://localhost:5000/api/student/test-attempts/submit`,
+        {
+          attemptId,
+          answers,
+        }
+      );
 
-      navigate('/student-dashboard', { 
-        state: { message: 'Test submitted successfully' } 
+      navigate("/studentDashboard", {
+        state: { message: "Test submitted successfully" },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit test');
+      setError(err instanceof Error ? err.message : "Failed to submit test");
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
-  if (error) return <div className="flex justify-center items-center h-screen">Error: {error}</div>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Loading...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Error: {error}
+      </div>
+    );
   if (!testData) return null;
 
   const currentQuestion = testData.questions[currentQuestionIndex];
-  const progress = (Object.keys(selectedAnswers).length / testData.questions.length) * 100;
+  const progress =
+    (Object.keys(selectedAnswers).length / testData.questions.length) * 100;
 
   return (
     <div className="container mx-auto p-6 max-w-3xl">
@@ -202,7 +224,9 @@ const TakeTest = () => {
         </div>
         <Progress value={progress} className="h-2" />
         <div className="flex justify-between text-sm text-gray-500 mt-2">
-          <span>Question {currentQuestionIndex + 1} of {testData.questions.length}</span>
+          <span>
+            Question {currentQuestionIndex + 1} of {testData.questions.length}
+          </span>
           <span>{Math.round(progress)}% completed</span>
         </div>
       </div>
@@ -210,21 +234,24 @@ const TakeTest = () => {
       {/* Question Card */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">
-            {currentQuestion.content}
-          </CardTitle>
+          <CardTitle className="text-lg">{currentQuestion.content}</CardTitle>
         </CardHeader>
         <CardContent>
           {currentQuestion.photo_path && (
             <img
+              // Remove /public from the URL since Express is already configured to serve from public/uploads
               src={`http://localhost:5000${currentQuestion.photo_path}`}
               alt="Question"
               className="mb-4 max-w-full rounded-lg"
+              onError={(e) => {
+                console.error("Image failed to load:", e);
+                e.currentTarget.style.display = "none";
+              }}
             />
           )}
           <RadioGroup
             value={selectedAnswers[currentQuestion.id]?.toString()}
-            onValueChange={(value : string) => 
+            onValueChange={(value: string) =>
               handleAnswerSelect(currentQuestion.id, parseInt(value))
             }
             className="space-y-3"
@@ -248,15 +275,15 @@ const TakeTest = () => {
       <div className="flex justify-between items-center">
         <Button
           variant="outline"
-          onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+          onClick={() => setCurrentQuestionIndex((prev) => prev - 1)}
           disabled={currentQuestionIndex === 0}
         >
           <ChevronLeft className="w-4 h-4 mr-2" />
           Previous
         </Button>
-        
+
         {currentQuestionIndex === testData.questions.length - 1 ? (
-          <Button 
+          <Button
             onClick={() => setShowConfirmSubmit(true)}
             className="bg-green-600 hover:bg-green-700"
           >
@@ -264,7 +291,7 @@ const TakeTest = () => {
           </Button>
         ) : (
           <Button
-            onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+            onClick={() => setCurrentQuestionIndex((prev) => prev + 1)}
             disabled={currentQuestionIndex === testData.questions.length - 1}
           >
             Next
@@ -279,15 +306,14 @@ const TakeTest = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Submit Test?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have answered {Object.keys(selectedAnswers).length} out of {testData.questions.length} questions.
-              Are you sure you want to submit your test?
+              You have answered {Object.keys(selectedAnswers).length} out of{" "}
+              {testData.questions.length} questions. Are you sure you want to
+              submit your test?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={submitTest}>
-              Submit
-            </AlertDialogAction>
+            <AlertDialogAction onClick={submitTest}>Submit</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -305,7 +331,7 @@ const TakeTest = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => navigate('/student-dashboard')}>
+            <AlertDialogAction onClick={() => navigate("/student-dashboard")}>
               Return to Dashboard
             </AlertDialogAction>
           </AlertDialogFooter>
