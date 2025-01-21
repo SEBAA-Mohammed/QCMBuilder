@@ -42,7 +42,7 @@ interface TestData {
   questions: Question[];
 }
 
-const TakeTest = () => {
+const TakeTest: React.FC = () => {
   const { testId, teacherId } = useParams();
   const navigate = useNavigate();
   const { user } = useUser();
@@ -64,6 +64,14 @@ const TakeTest = () => {
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showScoreDialog, setShowScoreDialog] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<{
+    score: number;
+    status: string;
+    message: string;
+    testTitle: string;
+    passingScore: number;
+  } | null>(null);
 
   useEffect(() => {
     // Basic validation checks
@@ -112,7 +120,9 @@ const TakeTest = () => {
             questions: processedQuestions,
           });
           setAttemptId(newAttemptId);
-          setTimeRemaining(test.time_limit * 60);
+          setTimeRemaining(Number(test.test.time_limit) * 60);
+          console.log(test.test.time_limit);
+          console.log(timeRemaining);
         } catch (err) {
           if (axios.isAxiosError(err) && err.response?.status === 409) {
             // If there's an existing attempt, redirect to dashboard
@@ -128,30 +138,14 @@ const TakeTest = () => {
         setLoading(false);
       }
     };
+    
 
     initializeTest();
   }, [user, testId, teacherId, navigate, attemptId]);
-  useEffect(() => {
-    if (timeRemaining > 0) {
-      const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            handleTimeUp();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
 
-      return () => clearInterval(timer);
-    }
-  }, [timeRemaining]);
+  
 
-  const handleTimeUp = () => {
-    setShowTimeUpDialog(true);
-    submitTest();
-  };
+
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -165,31 +159,59 @@ const TakeTest = () => {
       [questionId]: answerId,
     }));
   };
-
-  const submitTest = async () => {
-    try {
-      const answers = Object.entries(selectedAnswers).map(
-        ([questionId, answerId]) => ({
-          questionId: parseInt(questionId),
-          selectedAnswerId: answerId,
-        })
-      );
-
-      await axios.post(
-        `http://localhost:5000/api/student/test-attempts/submit`,
-        {
-          attemptId,
-          answers,
+  useEffect(() => {
+    if (!testData || timeRemaining <= 0) return;
+  
+    // Initialize time remaining once based on testData if it's not set yet
+    if (timeRemaining === null) {
+      setTimeRemaining(testData.time_limit * 60);
+    }
+  
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleTimeUp();
+          return 0;
         }
-      );
-
-      navigate("/studentDashboard", {
-        state: { message: "Test submitted successfully" },
+        return prev - 1;
       });
+    }, 1000);
+  
+    // Cleanup on component unmount or when timeRemaining reaches 0
+    return () => clearInterval(timer);
+  }, [timeRemaining, testData]); // Run the effect when timeRemaining or testData changes
+  
+
+  const handleTimeUp = async () => {
+    setShowTimeUpDialog(true);
+    await submitTest(true);
+  };
+
+  const submitTest = async (isTimeUp : boolean= false) => {
+    try {
+      const answers = Object.entries(selectedAnswers).map(([questionId, answerId]) => ({
+        questionId: parseInt(questionId),
+        selectedAnswerId: answerId
+      }));
+
+      const response = await axios.post(`http://localhost:5000/api/student/test-attempts/submit`, {
+        attemptId,
+        answers
+      });
+
+      setSubmissionResult(response.data);
+      setShowScoreDialog(true);
+
+      // If time's up, don't show the score dialog immediately
+      if (!isTimeUp) {
+        setShowTimeUpDialog(false);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit test");
+      setError(err instanceof Error ? err.message : 'Failed to submit test');
     }
   };
+
 
   if (loading)
     return (
@@ -313,7 +335,34 @@ const TakeTest = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={submitTest}>Submit</AlertDialogAction>
+            <AlertDialogAction onClick={()=>submitTest()}>Submit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Score Dialog */}
+      <AlertDialog open={showScoreDialog} onOpenChange={setShowScoreDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {submissionResult?.testTitle} - Test Results
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p className={`text-lg font-semibold ${
+                submissionResult?.status === 'success' ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {submissionResult?.message}
+              </p>
+              <div className="mt-4 text-sm text-gray-600">
+                <p>Score: {submissionResult?.score}%</p>
+                <p>Passing Score: {submissionResult?.passingScore}%</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => navigate('/studentDashboard')}>
+              Return to Dashboard
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -328,10 +377,19 @@ const TakeTest = () => {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Your time has expired. Your test has been automatically submitted.
+              {submissionResult && (
+                <div className="mt-4">
+                  <p className={`font-semibold ${
+                    submissionResult.status === 'success' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {submissionResult.message}
+                  </p>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => navigate("/student-dashboard")}>
+            <AlertDialogAction onClick={() => navigate('/studentDashboard')}>
               Return to Dashboard
             </AlertDialogAction>
           </AlertDialogFooter>

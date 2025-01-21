@@ -216,41 +216,90 @@ const startTestAttempt = async (req, res) => {
 };
 
 const submitTestAttempt = async (req, res) => {
-  const { attemptId, answers } = req.body;
-
-  try {
-    await pool.query("START TRANSACTION");
-
-    // Process each answer
-    for (const answer of answers) {
-      await pool.query(
-        `INSERT INTO student_answers (attempt_id, question_id, selected_answer_id)
-                 VALUES (?, ?, ?)`,
-        [attemptId, answer.questionId, answer.selectedAnswerId]
+    const { attemptId, answers } = req.body;
+    const connection = await pool.getConnection();
+  
+    try {
+      await connection.beginTransaction();
+  
+      // Get test info for passing score
+      const [testInfo] = await connection.query(
+        `SELECT t.passing_score, t.title
+         FROM tests t
+         JOIN test_attempts ta ON t.id = ta.test_id
+         WHERE ta.id = ?`,
+        [attemptId]
       );
+  
+      if (!testInfo.length) {
+        await connection.release();
+        return res.status(404).json({ error: "Test attempt not found" });
+      }
+  
+      // Process each answer and calculate correctness
+      for (const answer of answers) {
+        // Get correct answer and points for this question
+        const [questionInfo] = await connection.query(
+          `SELECT q.points, a.is_correct 
+           FROM questions q 
+           JOIN answers a ON a.question_id = q.id 
+           WHERE q.id = ? AND a.id = ?`,
+          [answer.questionId, answer.selectedAnswerId]
+        );
+  
+        const isCorrect = questionInfo[0]?.is_correct || false;
+        const pointsEarned = isCorrect ? questionInfo[0]?.points : 0;
+  
+        // Save student answer
+        await connection.query(
+          `INSERT INTO student_answers 
+           (attempt_id, question_id, selected_answer_id, is_correct, points_earned)
+           VALUES (?, ?, ?, ?, ?)`,
+          [attemptId, answer.questionId, answer.selectedAnswerId, isCorrect, pointsEarned]
+        );
+      }
+  
+      // Calculate final score using stored procedure
+      await connection.query("CALL calculate_test_score(?)", [attemptId]);
+  
+      // Get final score
+      const [attempt] = await connection.query(
+        "SELECT score FROM test_attempts WHERE id = ?",
+        [attemptId]
+      );
+  
+      await connection.commit();
+  
+      // Prepare response message based on score
+      const score = attempt[0].score;
+      const passingScore = testInfo[0].passing_score;
+      let message = "";
+      let status = "";
+  
+      if (score >= passingScore) {
+        message = `Congratulations! You passed the test with a score of ${score}%`;
+        status = "success";
+      } else {
+        message = `Unfortunately, you didn't pass the test. Your score is ${score}%. The passing score was ${passingScore}%`;
+        status = "failure";
+      }
+  
+      res.json({
+        score,
+        status,
+        message,
+        testTitle: testInfo[0].title,
+        passingScore
+      });
+  
+    } catch (error) {
+      await connection.rollback();
+      console.error('Submit test error:', error);
+      res.status(500).json({ error: "Failed to submit test" });
+    } finally {
+      await connection.release();
     }
-
-    // Calculate score
-    await pool.query("CALL calculate_test_score(?)", [attemptId]);
-
-    await pool.query("COMMIT");
-
-    // Get final score
-    const [attempt] = await pool.query(
-      "SELECT score FROM test_attempts WHERE id = ?",
-      [attemptId]
-    );
-
-    res.json({
-      score: attempt[0].score,
-      message: "Test submitted successfully",
-    });
-  } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error(error);
-    res.status(500).json({ error: error.message });
-  }
-};
+  };
 
 module.exports = {
   getStudentStats,
