@@ -239,6 +239,10 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             <PlusCircle className="w-4 h-4" />
             Create New Test
           </Button>
+          <Button onClick={() => navigate('/createAITest')}>
+          <PlusCircle className="w-4 h-4" />
+            Generate Test with Ai
+          </Button>
           <Button
             variant="outline"
             className="flex items-center gap-2"
