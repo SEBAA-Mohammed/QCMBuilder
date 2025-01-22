@@ -101,7 +101,6 @@ const CreateTest: React.FC = () => {
     setUser(null);
     navigate("/login");
   };
-
   // Create initial test
   const createTest = async () => {
     if (!validateTestDetails()) return;

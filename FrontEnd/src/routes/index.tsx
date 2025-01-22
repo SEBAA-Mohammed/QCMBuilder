@@ -7,6 +7,7 @@ import CreateTest from '../pages/CreateTest';
 import EditTest from '@/pages/EditTest';
 import StudentDashboard from '@/pages/StudentDash';
 import TakeTest from '@/pages/TakeTest';
+import AITestGenerator from '@/pages/TestGenerrator';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/create-test" element={<CreateTest />} />
         <Route path="/edit-test/:testId" element={<EditTest />} />
         <Route path="/take-test/:testId/:teacherId" element={<TakeTest />} />
+        <Route path="/createAITest" element={<AITestGenerator/>} />
       </Routes>
     </Router>
   );
