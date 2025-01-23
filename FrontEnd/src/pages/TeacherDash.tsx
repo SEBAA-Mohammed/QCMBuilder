@@ -10,7 +10,15 @@ import {
   Moon,
   Sun,
   Trash2,
+  Stars,
+  Download,
 } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent, 
+  DropdownMenuItem 
+} from "@/components/ui/dropdown-menu";
 import axios from "axios";
 import { Test } from "@/types/Test";
 import { useUser } from "@/context/userContext";
@@ -209,6 +217,19 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
   if (error) {
     return <p>Error: {error}</p>;
   }
+  const handleDownloadd = (testId : number,testTitle : string, type : string) => {
+    switch(type) {
+      case 'pdf':
+        handleDownload(testId);
+        break;
+      case 'html':
+        handleDownloadHTML(testId,testTitle)
+        break;
+      case 'scorm':
+        handleDownloadSCORM(testId,testTitle)
+      break;
+    }
+  };
 
   return (
     <div className="p-6">
@@ -226,11 +247,7 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             onClick={toggleTheme}
             className="w-10 h-10"
           >
-            {theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           <Button
             className="flex items-center gap-2"
@@ -239,9 +256,12 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             <PlusCircle className="w-4 h-4" />
             Create New Test
           </Button>
-          <Button onClick={() => navigate('/createAITest')}>
-          <PlusCircle className="w-4 h-4" />
-            Generate Test with Ai
+          <Button 
+            onClick={() => navigate('/createAITest')} 
+            className="flex items-center gap-2"
+          >
+            <Stars className="w-4 h-4" />
+            Generate Test with AI
           </Button>
           <Button
             variant="outline"
@@ -319,15 +339,24 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
                       >
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDownload(test.id)}>
-                        Download PDF
-                      </Button>
-                      <Button  variant="outline" size="sm" onClick={() => handleDownloadSCORM(test.id , test.title)}>
-                        Download SCORM
-                      </Button>
-                      <Button  variant="outline" size="sm" onClick={() => handleDownloadHTML(test.id , test.title)}>
-                        Download HTML
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" /> Download
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'pdf')}>
+                            Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'scorm')}>
+                            Download SCORM
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'html')}>
+                            Download HTML
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button variant="outline" size="sm">
                         Publish
                       </Button>

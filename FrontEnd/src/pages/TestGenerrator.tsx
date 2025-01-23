@@ -19,6 +19,7 @@ import { useUser } from '@/context/userContext';
 const AITestGenerator = () => {
     const navigate = useNavigate();
   const { user, setUser } = useUser();
+//   const teacherid = user.id;
   if (!user) {
     navigate("/login");
   }
@@ -59,7 +60,7 @@ const AITestGenerator = () => {
     return errors.length === 0;
   };
 
-  const handleSubmit = async (e : FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -67,7 +68,7 @@ const AITestGenerator = () => {
     setError("");
 
     try {
-      // First, create the test
+      // First, create the test (using your existing createTest endpoint)
       const createTestResponse = await fetch("http://localhost:5000/api/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,8 +88,8 @@ const AITestGenerator = () => {
       
       const { testId } = await createTestResponse.json();
 
-      // Then, generate and add questions
-      const generateResponse = await fetch("http://localhost:5000/api/generate-questions", {
+      // Then, generate questions
+      const generateResponse = await fetch("http://localhost:5000/api/tests/generate-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,18 +99,51 @@ const AITestGenerator = () => {
         }),
       });
 
-      if (!generateResponse.ok) throw new Error("Failed to generate questions");
+      if (!generateResponse.ok) {
+        throw new Error("Failed to generate questions");
+      }
 
-      // Redirect to edit test page
-      navigate(`/editTest/${testId}`);
+      const result = await generateResponse.json();
+      if (result.success) {
+        navigate(`/editTest/${testId}`);
+      } else {
+        throw new Error(result.message || "Failed to generate questions");
+      }
 
     } catch (error) {
-        // @ts-expect-error error type
+        // @ts-expect-error - error is a string
       setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
+
+
+//   const pollGenerationStatus = async (testId: string) => {
+//     const pollInterval = setInterval(async () => {
+//       try {
+//         const response = await fetch(`http://localhost:5000/api/tests/generation-status/${testId}`);
+//         const data = await response.json();
+
+//         if (data.status === 'completed') {
+//           clearInterval(pollInterval);
+//           setIsLoading(false);
+//           navigate(`/editTest/${testId}`);
+//         } else if (data.status === 'failed') {
+//           clearInterval(pollInterval);
+//           setIsLoading(false);
+//           setError(data.error_message || 'Generation failed');
+//         }
+//         // Continue polling if status is 'pending' or 'processing'
+        
+//       } catch (error) {
+//         console.error(error);
+//         clearInterval(pollInterval);
+//         setIsLoading(false);
+//         setError('Error checking generation status');
+//       }
+//     }, 2000); // Poll every 2 seconds
+//   };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

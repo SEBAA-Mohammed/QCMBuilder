@@ -112,7 +112,8 @@ const TakeTest: React.FC = () => {
 
           let processedQuestions = questions;
           if (test.is_randomized) {
-            processedQuestions = [...questions].sort(() => Math.random() - 0.5);
+            processedQuestions = [...questions].sort(() => Math.random()*10);
+            console.log(processedQuestions);
           }
 
           setTestData({
