@@ -348,6 +348,44 @@ const testController = {
       connection.release();
     }
   },
+  // Add this method to the existing testController object
+getTestResults: async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const { testId } = req.params;
+
+    // Fetch test attempts with student details and calculate pass/fail
+    const [results] = await connection.query(`
+      SELECT 
+        ta.id AS attempt_id,
+        u.full_name AS student_name, 
+        u.email AS student_email,
+        ta.score,
+        t.passing_score,
+        ta.start_time,
+        ta.end_time,
+        CASE WHEN ta.score >= t.passing_score THEN 'Pass' ELSE 'Fail' END AS result_status
+      FROM test_attempts ta
+      JOIN users u ON ta.student_id = u.id
+      JOIN tests t ON ta.test_id = t.id
+      WHERE ta.test_id = ? AND ta.status = 'completed'
+      ORDER BY ta.score DESC
+    `, [testId]);
+
+    res.json({
+      success: true,
+      results
+    });
+  } catch (error) {
+    console.error("Error fetching test results:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch test results",
+    });
+  } finally {
+    connection.release();
+  }
+},
   updateTest: async (req, res) => {
     const connection = await pool.getConnection();
     try {

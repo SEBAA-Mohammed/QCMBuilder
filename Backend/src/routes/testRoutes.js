@@ -46,6 +46,9 @@ router.get(
   aiTestController.checkGenerationStatus
 );
 
+// In your routes file
+router.get('/:testId/results', testController.getTestResults);
+
 router.put("/:id", testController.updateTest);
 router.delete("/:id", testController.deleteTest);
 

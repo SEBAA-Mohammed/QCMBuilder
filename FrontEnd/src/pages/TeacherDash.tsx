@@ -13,11 +13,11 @@ import {
   Stars,
   Download,
 } from "lucide-react";
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuItem 
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import axios from "axios";
 import { Test } from "@/types/Test";
@@ -28,8 +28,7 @@ import Swal from "sweetalert2";
 import TestDocument from "@/components/PdfGeneration";
 import { Question } from "@/types/QuestionAnswer";
 import { pdf } from "@react-pdf/renderer";
-import { saveAs } from 'file-saver';
-
+import { saveAs } from "file-saver";
 
 interface Stats {
   totalTests: number;
@@ -60,92 +59,129 @@ const TeacherDashboard = () => {
     setUser(null);
     navigate("/login");
   };
-  const handleDownload = async (testId : number) => {
+  const handleDownload = async (testId: number) => {
     try {
       const response = await fetch(
         `http://localhost:5000/api/tests/edit?testId=${testId}&teacherId=${user?.id}`
       );
       const data = await response.json();
-      
+
       if (data.success) {
         await handleDownloadPDF(data.test, data.questions);
       }
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error("Error downloading PDF:", error);
     }
   };
 
-    const handleDownloadPDF = async (test: Test, questions: Question[]) => {
+  const handleDownloadPDF = async (test: Test, questions: Question[]) => {
     try {
       // Generate PDF blob
       const blob = await pdf(
         <TestDocument test={test} questions={questions} />
       ).toBlob();
-      
+
       // Save the PDF file
       saveAs(blob, `${test.title}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
     }
   };
   // const [isLoading, setIsLoading] = useState(false);
 
-const handleDownloadHTML = async (testId : number ,title : string) => {
-  // setIsLoading(true);
-  try {
-    const response = await fetch(
-      `http://localhost:5000/api/tests/${testId}/html`
-    );
+  const handleDownloadHTML = async (testId: number, title: string) => {
+    // setIsLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tests/${testId}/html`
+      );
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}_html.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading SCORM package:", error);
+      // Add your error handling here, e.g., showing a toast notification
+    } finally {
+      // setIsLoading(false);
     }
+  };
+  const handlePublish = async (test: Test) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tests/${test.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: test.title,
+            status: "published",
+            description: test.description,
+            time_limit: test.time_limit,
+            passing_score: test.passing_score,
+            is_randomized: test.is_randomized,
+            attempts_allowed: test.attempts_allowed,
+          }),
+        }
+      );
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}_html.zip`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-
-  } catch (error) {
-    console.error('Error downloading SCORM package:', error);
-    // Add your error handling here, e.g., showing a toast notification
-  } finally {
-    // setIsLoading(false);
-  }
-};
-const handleDownloadSCORM = async (testId : number ,title : string) => {
-  // setIsLoading(true);
-  try {
-    const response = await fetch(
-      `http://localhost:5000/api/tests/${testId}/scorm`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) throw new Error("Failed to update test");
+      const toast = Swal.mixin({
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
+        timer: 3000,
+        padding: "2em",
+        timerProgressBar: true,
+      });
+      toast.fire({
+        icon: "success",
+        title: "Test Published Successfully",
+        padding: "2em",
+      });
+    } catch (error) {
+      console.error("Error updating test:", error);
     }
+  };
+  const handleDownloadSCORM = async (testId: number, title: string) => {
+    // setIsLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tests/${testId}/scorm`
+      );
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}_scorm.zip`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-  } catch (error) {
-    console.error('Error downloading SCORM package:', error);
-    // Add your error handling here, e.g., showing a toast notification
-  } finally {
-    // setIsLoading(false);
-  }
-};
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}_scorm.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading SCORM package:", error);
+      // Add your error handling here, e.g., showing a toast notification
+    } finally {
+      // setIsLoading(false);
+    }
+  };
   const handleDeleteTest = async (testId: number) => {
     Swal.fire({
       title: "Are you sure you want to delete this?",
@@ -170,7 +206,7 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
         }
         Swal.fire({
           title: "Deleted!",
-          confirmButtonColor:"#0f172a",
+          confirmButtonColor: "#0f172a",
           text: "Your test has been deleted.",
           icon: "success",
         });
@@ -217,17 +253,17 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
   if (error) {
     return <p>Error: {error}</p>;
   }
-  const handleDownloadd = (testId : number,testTitle : string, type : string) => {
-    switch(type) {
-      case 'pdf':
+  const handleDownloadd = (testId: number, testTitle: string, type: string) => {
+    switch (type) {
+      case "pdf":
         handleDownload(testId);
         break;
-      case 'html':
-        handleDownloadHTML(testId,testTitle)
+      case "html":
+        handleDownloadHTML(testId, testTitle);
         break;
-      case 'scorm':
-        handleDownloadSCORM(testId,testTitle)
-      break;
+      case "scorm":
+        handleDownloadSCORM(testId, testTitle);
+        break;
     }
   };
 
@@ -247,7 +283,11 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             onClick={toggleTheme}
             className="w-10 h-10"
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </Button>
           <Button
             className="flex items-center gap-2"
@@ -256,8 +296,8 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             <PlusCircle className="w-4 h-4" />
             Create New Test
           </Button>
-          <Button 
-            onClick={() => navigate('/createAITest')} 
+          <Button
+            onClick={() => navigate("/createAITest")}
             className="flex items-center gap-2"
           >
             <Stars className="w-4 h-4" />
@@ -304,7 +344,9 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
             <Activity className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{(Number(stats.averageScore) || 0).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">
+              {(Number(stats.averageScore) || 0).toFixed(1)}%
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -346,20 +388,53 @@ const handleDownloadSCORM = async (testId : number ,title : string) => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'pdf')}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleDownloadd(test.id, test.title, "pdf")
+                            }
+                          >
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'scorm')}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleDownloadd(test.id, test.title, "scorm")
+                            }
+                          >
                             Download SCORM
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownloadd(test.id,test.title, 'html')}>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleDownloadd(test.id, test.title, "html")
+                            }
+                          >
                             Download HTML
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <Button variant="outline" size="sm">
-                        Publish
-                      </Button>
+                      {test.status == "draft" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePublish(test)}
+                        >
+                          Publish
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePublish(test)}
+                        >
+                          Published
+                        </Button>
+                      )}
+                      <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/results/${test.id}`)}
+                        >
+                          Results
+                        </Button>
                     </div>
                   </div>
                   <Button

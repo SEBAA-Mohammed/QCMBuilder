@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { usePollinationsText } from '@pollinations/react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,27 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertTriangle, LogOut } from "lucide-react";
+import { Loader2, AlertTriangle, LogOut, Moon, Sun, ArrowLeft, Stars } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useUser } from '@/context/userContext';
+import { useTheme } from "@/components/theme-context";
 
 const AITestGenerator = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const { user, setUser } = useUser();
-//   const teacherid = user.id;
-  if (!user) {
-    navigate("/login");
-  }
-  if (user?.role !== "teacher") {
-    navigate("/studentDashboard");
-  }
-  const handleLogout = () => {
-    setUser(null);
-    navigate("/login");
-  };
+  const { theme, setTheme } = useTheme();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [testId, setTestId] = useState<number | null>(null);
+  const [triggerAIGeneration, setTriggerAIGeneration] = useState(false);
+  const [aiGenerationComplete, setAIGenerationComplete] = useState(false);
   
   const [testDetails, setTestDetails] = useState({
     title: "",
@@ -44,7 +39,85 @@ const AITestGenerator = () => {
     topic: "",
     difficulty: ""
   });
+  const pollinationOptions = useCallback({
+    model: 'mistral',
+    seed: Math.floor(Math.random() * 1000)
+  }, []);
 
+  // Pollinations text generation hook
+  const { text: aiResponse, isLoading: isAILoading } = usePollinationsText(
+    !aiGenerationComplete && testId && testDetails.topic && testDetails.difficulty
+      ? `Create 5 multiple-choice questions about ${testDetails.topic} at ${testDetails.difficulty} difficulty. 
+        Format each question with:
+        Q1: [Question Text]
+        A) [Option 1]
+        B) [Option 2]
+        C) [Option 3]
+        D) [Option 4]
+        Correct: [Correct Answer Letter]`
+      : null,
+    pollinationOptions
+  ) || { text: null, isLoading: false };
+  useEffect(() => {console.log(aiResponse)}, [aiResponse]);
+  
+  const parseAndAddQuestions = async () => {
+    console.log("parseAndAddQuestions");
+    if (!testId || !aiResponse || aiGenerationComplete) return;
+    console.log("parseAndAddQuestions2");
+    try {
+      const questions = parseAIResponse(aiResponse);
+
+      for (const question of questions) {
+        const questionResponse = await fetch(
+          `http://localhost:5000/api/tests/${testId}/questions`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...question,
+              test_id: testId
+            }),
+          }
+        );
+
+        if (!questionResponse.ok) throw new Error("Failed to add question");
+      }
+
+      setAIGenerationComplete(true);
+      setIsLoading(false);
+      navigate(`/edit-test/${testId}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      setIsLoading(false);
+      setAIGenerationComplete(true);
+    }
+  };
+
+
+  // Use effect to trigger question addition when AI response is ready
+  useEffect(() => {
+    if (testId && aiResponse && !isAILoading && !aiGenerationComplete) {
+      parseAndAddQuestions();
+    }
+  }, [testId, aiResponse, isAILoading, aiGenerationComplete]);
+
+  // Reset ref when component unmounts or test creation fails
+
+  // Navigation and authentication checks
+  useEffect(() => {
+    if (!user) navigate("/login");
+    if (user?.role !== "teacher") navigate("/login");
+  }, [user, navigate]);
+
+//   // Use effect to trigger question addition when AI response is ready
+//   useEffect(() => {
+//     if (testId && aiResponse && !isAILoading && triggerAIGeneration) {
+//       parseAndAddQuestions();
+//       setTriggerAIGeneration(false);
+//     }
+//   }, [testId, aiResponse, isAILoading, triggerAIGeneration]);
+
+  // Validate form
   const validateForm = () => {
     const errors = [];
     if (!testDetails.title.trim()) errors.push("Test title is required");
@@ -60,15 +133,47 @@ const AITestGenerator = () => {
     return errors.length === 0;
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  // Parse AI response to extract questions
+  const parseAIResponse = (text: string) => {
+    const questions = [];
+    const questionRegex = /Q\d+:\s*(.+?)\n(?:A\)\s*(.+?)\n)?(?:B\)\s*(.+?)\n)?(?:C\)\s*(.+?)\n)?(?:D\)\s*(.+?)\n)?Correct:\s*([ABCD])/gs;
+    
+    let match;
+    while ((match = questionRegex.exec(text)) !== null) {
+      const [, questionText, optionA, optionB, optionC, optionD, correctAnswer] = match;
+      
+      if (!questionText || !optionA || !optionB || !optionC || !optionD) continue;
+
+      const question = {
+        content: questionText.trim(),
+        type: "one-correct-choice",
+        points: 1,
+        answers: [
+          { content: optionA.trim(), is_correct: correctAnswer === 'A', order_num: 1 },
+          { content: optionB.trim(), is_correct: correctAnswer === 'B', order_num: 2 },
+          { content: optionC.trim(), is_correct: correctAnswer === 'C', order_num: 3 },
+          { content: optionD.trim(), is_correct: correctAnswer === 'D', order_num: 4 }
+        ]
+      };
+
+      questions.push(question);
+    }
+
+    return questions;
+  };
+
+  // Create test handler
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    setAIGenerationComplete(false);
+
     if (!validateForm()) return;
 
     setIsLoading(true);
     setError("");
 
-    try {
-      // First, create the test (using your existing createTest endpoint)
+   try {
       const createTestResponse = await fetch("http://localhost:5000/api/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,71 +192,55 @@ const AITestGenerator = () => {
       if (!createTestResponse.ok) throw new Error("Failed to create test");
       
       const { testId } = await createTestResponse.json();
-
-      // Then, generate questions
-      const generateResponse = await fetch("http://localhost:5000/api/tests/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testId,
-          topic: testDetails.topic,
-          difficulty: testDetails.difficulty
-        }),
-      });
-
-      if (!generateResponse.ok) {
-        throw new Error("Failed to generate questions");
-      }
-
-      const result = await generateResponse.json();
-      if (result.success) {
-        navigate(`/editTest/${testId}`);
-      } else {
-        throw new Error(result.message || "Failed to generate questions");
-      }
-
+      setTestId(testId);
+      setIsLoading(true);
     } catch (error) {
-        // @ts-expect-error - error is a string
-      setError(error.message);
-    } finally {
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
       setIsLoading(false);
     }
   };
 
+  // Theme and logout handlers
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
-//   const pollGenerationStatus = async (testId: string) => {
-//     const pollInterval = setInterval(async () => {
-//       try {
-//         const response = await fetch(`http://localhost:5000/api/tests/generation-status/${testId}`);
-//         const data = await response.json();
-
-//         if (data.status === 'completed') {
-//           clearInterval(pollInterval);
-//           setIsLoading(false);
-//           navigate(`/editTest/${testId}`);
-//         } else if (data.status === 'failed') {
-//           clearInterval(pollInterval);
-//           setIsLoading(false);
-//           setError(data.error_message || 'Generation failed');
-//         }
-//         // Continue polling if status is 'pending' or 'processing'
-        
-//       } catch (error) {
-//         console.error(error);
-//         clearInterval(pollInterval);
-//         setIsLoading(false);
-//         setError('Error checking generation status');
-//       }
-//     }, 2000); // Poll every 2 seconds
-//   };
+  const handleLogout = () => {
+    setUser(null);
+    navigate("/login");
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create AI-Generated Test</CardTitle>
-        </CardHeader>
-        <Button
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col">
+          <h1 className="text-3xl font-bold">Generate Test with AI</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            className="w-10 h-10"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
             variant="outline"
             className="flex items-center gap-2"
             onClick={handleLogout}
@@ -159,6 +248,13 @@ const AITestGenerator = () => {
             <LogOut className="w-4 h-4" />
             Logout
           </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Test Configuration</CardTitle>
+        </CardHeader>
         <CardContent>
           {error && (
             <Alert variant="destructive" className="mb-4">
@@ -167,7 +263,7 @@ const AITestGenerator = () => {
             </Alert>
           )}
 
-          <form onSubmit={(e)=>handleSubmit(e)} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               placeholder="Test Title"
               value={testDetails.title}
@@ -231,15 +327,18 @@ const AITestGenerator = () => {
             <Button 
               type="submit" 
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || triggerAIGeneration}
             >
-              {isLoading ? (
+              {(isLoading || (testId && isAILoading)) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating Test...
                 </>
               ) : (
-                'Create AI Test'
+                <>
+                  <Stars className="w-4 h-4 mr-2" />
+                  Create AI Test
+                </>
               )}
             </Button>
           </form>

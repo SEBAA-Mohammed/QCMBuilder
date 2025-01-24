@@ -20,7 +20,7 @@ const CreateTest: React.FC = () => {
     navigate("/login");
   }
   if (user?.role !== "teacher") {
-    navigate("/studentDashboard");
+    navigate("/login");
   }
 
   const [testId, setTestId] = useState<number | null>(null);

@@ -36,81 +36,81 @@ const aiTestController = {
       const result = await response.json();
       console.log({ result });
 
-      //           if (!response?.generated_text) {
-      //             throw new Error("No response from model");
-      //           }
+                if (!response?.generated_text) {
+                  throw new Error("No response from model");
+                }
 
-      //           const questions = parseAIResponse(response.generated_text);
+                const questions = parseAIResponse(response.generated_text);
 
-      //           await connection.beginTransaction();
+                await connection.beginTransaction();
 
-      //           for (const question of questions) {
-      //             const [orderResult] = await connection.query(
-      //               "SELECT COALESCE(MAX(order_num), 0) + 1 as next_order FROM questions WHERE test_id = ?",
-      //               [testId]
-      //             );
+                for (const question of questions) {
+                  const [orderResult] = await connection.query(
+                    "SELECT COALESCE(MAX(order_num), 0) + 1 as next_order FROM questions WHERE test_id = ?",
+                    [testId]
+                  );
 
-      //             const [questionResult] = await connection.query(
-      //               `INSERT INTO questions (test_id, content, type, points, order_num)
-      //                VALUES (?, ?, ?, ?, ?)`,
-      //               [testId, question.content, question.type, question.points, orderResult[0].next_order]
-      //             );
+                  const [questionResult] = await connection.query(
+                    `INSERT INTO questions (test_id, content, type, points, order_num)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [testId, question.content, question.type, question.points, orderResult[0].next_order]
+                  );
 
-      //             for (const answer of question.answers) {
-      //               await connection.query(
-      //                 `INSERT INTO answers (question_id, content, is_correct, order_num)
-      //                  VALUES (?, ?, ?, ?)`,
-      //                 [questionResult.insertId, answer.content, answer.is_correct, answer.order_num]
-      //               );
-      //             }
-      //           }
+                  for (const answer of question.answers) {
+                    await connection.query(
+                      `INSERT INTO answers (question_id, content, is_correct, order_num)
+                       VALUES (?, ?, ?, ?)`,
+                      [questionResult.insertId, answer.content, answer.is_correct, answer.order_num]
+                    );
+                  }
+                }
 
-      //           await connection.commit();
-      //           await connection.query(
-      //             `UPDATE generation_status SET status = 'completed' WHERE test_id = ?`,
-      //             [testId]
-      //           );
+                await connection.commit();
+                await connection.query(
+                  `UPDATE generation_status SET status = 'completed' WHERE test_id = ?`,
+                  [testId]
+                );
 
-      //           res.json({ success: true, questionCount: questions.length });
+                res.json({ success: true, questionCount: questions.length });
 
-      //         } catch (error) {
-      //           if (connection) {
-      //             await connection.rollback();
-      //             await connection.query(
-      //               `UPDATE generation_status SET status = 'failed', error_message = ? WHERE test_id = ?`,
-      //               [error.message, testId]
-      //             );
-      //           }
+              } catch (error) {
+                if (connection) {
+                  await connection.rollback();
+                  await connection.query(
+                    `UPDATE generation_status SET status = 'failed', error_message = ? WHERE test_id = ?`,
+                    [error.message, testId]
+                  );
+                }
 
-      //           res.status(500).json({
-      //             success: false,
-      //             error: process.env.NODE_ENV === "development" ? error.message : "An error occurred"
-      //           });
-      //         } finally {
-      //           if (connection) connection.release();
-      //         }
-      //   },
-      //   checkGenerationStatus: async (req, res) => {
-      //     const connection = await pool.getConnection();
-      //     try {
-      //       const { testId } = req.params;
+                res.status(500).json({
+                  success: false,
+                  error: process.env.NODE_ENV === "development" ? error.message : "An error occurred"
+                });
+              } finally {
+                if (connection) connection.release();
+              }
+        },
+        checkGenerationStatus: async (req, res) => {
+          const connection = await pool.getConnection();
+          try {
+            const { testId } = req.params;
 
-      //       const [status] = await connection.query(
-      //         `SELECT status, error_message FROM generation_status WHERE test_id = ?`,
-      //         [testId]
-      //       );
+            const [status] = await connection.query(
+              `SELECT status, error_message FROM generation_status WHERE test_id = ?`,
+              [testId]
+            );
 
-      //       if (!status.length) {
-      //         return res.status(404).json({
-      //           success: false,
-      //           message: "Generation status not found",
-      //         });
-      //       }
+            if (!status.length) {
+              return res.status(404).json({
+                success: false,
+                message: "Generation status not found",
+              });
+            }
 
-      //   res.json({
-      //     success: true,
-      //     status: status[0],
-      //   });
+        res.json({
+          success: true,
+          status: status[0],
+        });
     } catch (error) {
       console.error("Error checking generation status:", error);
       res.status(500).json({
