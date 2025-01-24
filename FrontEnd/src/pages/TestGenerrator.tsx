@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { usePollinationsText } from '@pollinations/react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { usePollinationsText } from "@pollinations/react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertTriangle, LogOut, Moon, Sun, ArrowLeft, Stars } from "lucide-react";
+import {
+  Loader2,
+  AlertTriangle,
+  LogOut,
+  Moon,
+  Sun,
+  ArrowLeft,
+  Stars,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useUser } from '@/context/userContext';
+import { useUser } from "@/context/userContext";
 import { useTheme } from "@/components/theme-context";
 
 const AITestGenerator = () => {
@@ -28,7 +36,9 @@ const AITestGenerator = () => {
   const [testId, setTestId] = useState<number | null>(null);
   const [triggerAIGeneration, setTriggerAIGeneration] = useState(false);
   const [aiGenerationComplete, setAIGenerationComplete] = useState(false);
-  
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [numberOfQuestions, setNumberOfQuestions] = useState(5);
+
   const [testDetails, setTestDetails] = useState({
     title: "",
     description: "",
@@ -37,17 +47,23 @@ const AITestGenerator = () => {
     is_randomized: false,
     attempts_allowed: 1,
     topic: "",
-    difficulty: ""
+    difficulty: "",
   });
-  const pollinationOptions = useCallback({
-    model: 'mistral',
-    seed: Math.floor(Math.random() * 1000)
-  }, []);
+  const pollinationOptions = useCallback(
+    {
+      model: "mistral",
+      seed: Math.floor(Math.random() * 1000),
+    },
+    []
+  );
 
   // Pollinations text generation hook
-  const { text: aiResponse, isLoading: isAILoading } = usePollinationsText(
-    !aiGenerationComplete && testId && testDetails.topic && testDetails.difficulty
-      ? `Create 5 multiple-choice questions about ${testDetails.topic} at ${testDetails.difficulty} difficulty. 
+  const pollinationsResponse = usePollinationsText(
+    !aiGenerationComplete &&
+      testId &&
+      testDetails.topic &&
+      testDetails.difficulty
+      ? `Create ${numberOfQuestions} multiple-choice questions about ${testDetails.topic} at ${testDetails.difficulty} difficulty. 
         Format each question with:
         Q1: [Question Text]
         A) [Option 1]
@@ -57,9 +73,20 @@ const AITestGenerator = () => {
         Correct: [Correct Answer Letter]`
       : null,
     pollinationOptions
-  ) || { text: null, isLoading: false };
-  useEffect(() => {console.log(aiResponse)}, [aiResponse]);
-  
+  );
+
+  const isAILoading = pollinationsResponse?.isLoading || false;
+
+  useEffect(() => {
+    if (pollinationsResponse) {
+      setAiResponse(pollinationsResponse);
+    }
+  }, [pollinationsResponse]);
+
+  useEffect(() => {
+    console.log(aiResponse);
+  }, [aiResponse]);
+
   const parseAndAddQuestions = async () => {
     console.log("parseAndAddQuestions");
     if (!testId || !aiResponse || aiGenerationComplete) return;
@@ -75,7 +102,7 @@ const AITestGenerator = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               ...question,
-              test_id: testId
+              test_id: testId,
             }),
           }
         );
@@ -87,12 +114,13 @@ const AITestGenerator = () => {
       setIsLoading(false);
       navigate(`/edit-test/${testId}`);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      setError(
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
       setIsLoading(false);
       setAIGenerationComplete(true);
     }
   };
-
 
   // Use effect to trigger question addition when AI response is ready
   useEffect(() => {
@@ -109,26 +137,28 @@ const AITestGenerator = () => {
     if (user?.role !== "teacher") navigate("/login");
   }, [user, navigate]);
 
-//   // Use effect to trigger question addition when AI response is ready
-//   useEffect(() => {
-//     if (testId && aiResponse && !isAILoading && triggerAIGeneration) {
-//       parseAndAddQuestions();
-//       setTriggerAIGeneration(false);
-//     }
-//   }, [testId, aiResponse, isAILoading, triggerAIGeneration]);
+  // Use effect to trigger question addition when AI response is ready
+  useEffect(() => {
+    if (testId && aiResponse && !isAILoading && triggerAIGeneration) {
+      parseAndAddQuestions();
+      setTriggerAIGeneration(false);
+    }
+  }, [testId, aiResponse, isAILoading, triggerAIGeneration]);
 
   // Validate form
   const validateForm = () => {
     const errors = [];
     if (!testDetails.title.trim()) errors.push("Test title is required");
-    if (!testDetails.description.trim()) errors.push("Test description is required");
-    if (testDetails.time_limit <= 0) errors.push("Time limit must be greater than 0");
+    if (!testDetails.description.trim())
+      errors.push("Test description is required");
+    if (testDetails.time_limit <= 0)
+      errors.push("Time limit must be greater than 0");
     if (testDetails.passing_score < 0 || testDetails.passing_score > 100) {
       errors.push("Passing score must be between 0 and 100");
     }
     if (!testDetails.topic.trim()) errors.push("Topic is required");
     if (!testDetails.difficulty) errors.push("Difficulty level is required");
-    
+
     setError(errors.join(", "));
     return errors.length === 0;
   };
@@ -136,24 +166,50 @@ const AITestGenerator = () => {
   // Parse AI response to extract questions
   const parseAIResponse = (text: string) => {
     const questions = [];
-    const questionRegex = /Q\d+:\s*(.+?)\n(?:A\)\s*(.+?)\n)?(?:B\)\s*(.+?)\n)?(?:C\)\s*(.+?)\n)?(?:D\)\s*(.+?)\n)?Correct:\s*([ABCD])/gs;
-    
+    const questionRegex =
+      /Q\d+:\s*(.+?)\n(?:A\)\s*(.+?)\n)?(?:B\)\s*(.+?)\n)?(?:C\)\s*(.+?)\n)?(?:D\)\s*(.+?)\n)?Correct:\s*([ABCD])/gs;
+
     let match;
     while ((match = questionRegex.exec(text)) !== null) {
-      const [, questionText, optionA, optionB, optionC, optionD, correctAnswer] = match;
-      
-      if (!questionText || !optionA || !optionB || !optionC || !optionD) continue;
+      const [
+        ,
+        questionText,
+        optionA,
+        optionB,
+        optionC,
+        optionD,
+        correctAnswer,
+      ] = match;
+
+      if (!questionText || !optionA || !optionB || !optionC || !optionD)
+        continue;
 
       const question = {
         content: questionText.trim(),
         type: "one-correct-choice",
         points: 1,
         answers: [
-          { content: optionA.trim(), is_correct: correctAnswer === 'A', order_num: 1 },
-          { content: optionB.trim(), is_correct: correctAnswer === 'B', order_num: 2 },
-          { content: optionC.trim(), is_correct: correctAnswer === 'C', order_num: 3 },
-          { content: optionD.trim(), is_correct: correctAnswer === 'D', order_num: 4 }
-        ]
+          {
+            content: optionA.trim(),
+            is_correct: correctAnswer === "A",
+            order_num: 1,
+          },
+          {
+            content: optionB.trim(),
+            is_correct: correctAnswer === "B",
+            order_num: 2,
+          },
+          {
+            content: optionC.trim(),
+            is_correct: correctAnswer === "C",
+            order_num: 3,
+          },
+          {
+            content: optionD.trim(),
+            is_correct: correctAnswer === "D",
+            order_num: 4,
+          },
+        ],
       };
 
       questions.push(question);
@@ -173,29 +229,34 @@ const AITestGenerator = () => {
     setIsLoading(true);
     setError("");
 
-   try {
-      const createTestResponse = await fetch("http://localhost:5000/api/tests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: testDetails.title,
-          description: testDetails.description,
-          time_limit: testDetails.time_limit,
-          passing_score: testDetails.passing_score,
-          is_randomized: testDetails.is_randomized,
-          attempts_allowed: testDetails.attempts_allowed,
-          user: user,
-          status: "draft"
-        }),
-      });
+    try {
+      const createTestResponse = await fetch(
+        "http://localhost:5000/api/tests",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: testDetails.title,
+            description: testDetails.description,
+            time_limit: testDetails.time_limit,
+            passing_score: testDetails.passing_score,
+            is_randomized: testDetails.is_randomized,
+            attempts_allowed: testDetails.attempts_allowed,
+            user: user,
+            status: "draft",
+          }),
+        }
+      );
 
       if (!createTestResponse.ok) throw new Error("Failed to create test");
-      
+
       const { testId } = await createTestResponse.json();
       setTestId(testId);
       setIsLoading(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      setError(
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
       setIsLoading(false);
     }
   };
@@ -267,22 +328,36 @@ const AITestGenerator = () => {
             <Input
               placeholder="Test Title"
               value={testDetails.title}
-              onChange={(e) => setTestDetails(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setTestDetails((prev) => ({ ...prev, title: e.target.value }))
+              }
             />
 
             <Textarea
               placeholder="Test Description"
               value={testDetails.description}
-              onChange={(e) => setTestDetails(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setTestDetails((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
             />
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm mb-1">Time Limit (minutes)</label>
+                <label className="block text-sm mb-1">
+                  Time Limit (minutes)
+                </label>
                 <Input
                   type="number"
                   value={testDetails.time_limit}
-                  onChange={(e) => setTestDetails(prev => ({ ...prev, time_limit: parseInt(e.target.value) }))}
+                  onChange={(e) =>
+                    setTestDetails((prev) => ({
+                      ...prev,
+                      time_limit: parseInt(e.target.value),
+                    }))
+                  }
                 />
               </div>
 
@@ -291,7 +366,12 @@ const AITestGenerator = () => {
                 <Input
                   type="number"
                   value={testDetails.passing_score}
-                  onChange={(e) => setTestDetails(prev => ({ ...prev, passing_score: parseInt(e.target.value) }))}
+                  onChange={(e) =>
+                    setTestDetails((prev) => ({
+                      ...prev,
+                      passing_score: parseInt(e.target.value),
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -300,36 +380,63 @@ const AITestGenerator = () => {
               <span>Randomize Questions</span>
               <Switch
                 checked={testDetails.is_randomized}
-                onCheckedChange={(checked) => setTestDetails(prev => ({ ...prev, is_randomized: checked }))}
+                onCheckedChange={(checked) =>
+                  setTestDetails((prev) => ({
+                    ...prev,
+                    is_randomized: checked,
+                  }))
+                }
               />
             </div>
 
             <Input
               placeholder="Topic (e.g., NodeJS Fundamentals, React Hooks)"
               value={testDetails.topic}
-              onChange={(e) => setTestDetails(prev => ({ ...prev, topic: e.target.value }))}
+              onChange={(e) =>
+                setTestDetails((prev) => ({ ...prev, topic: e.target.value }))
+              }
             />
 
-            <Select
-              value={testDetails.difficulty}
-              onValueChange={(value) => setTestDetails(prev => ({ ...prev, difficulty: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select difficulty level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                value={testDetails.difficulty}
+                onValueChange={(value) =>
+                  setTestDetails((prev) => ({ ...prev, difficulty: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Button 
-              type="submit" 
+              <Select
+                value={numberOfQuestions.toString()}
+                onValueChange={(value) => setNumberOfQuestions(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Number of Questions" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[...Array(20)].map((_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {i + 1} Question{i + 1 > 1 ? "s" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              type="submit"
               className="w-full"
               disabled={isLoading || triggerAIGeneration}
             >
-              {(isLoading || (testId && isAILoading)) ? (
+              {isLoading || (testId && isAILoading) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating Test...
