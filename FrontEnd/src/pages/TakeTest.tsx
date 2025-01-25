@@ -112,8 +112,16 @@ const TakeTest: React.FC = () => {
 
           let processedQuestions = questions;
           if (test.is_randomized) {
-            processedQuestions = [...questions].sort(() => Math.random()*10);
+            processedQuestions = [...questions];
+            for (let i = processedQuestions.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [processedQuestions[i], processedQuestions[j]] = [processedQuestions[j], processedQuestions[i]];
+            }
             console.log(processedQuestions);
+            setTestData({
+              ...test,
+              questions: processedQuestions,
+            });
           }
 
           setTestData({

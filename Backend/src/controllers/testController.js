@@ -368,7 +368,7 @@ getTestResults: async (req, res) => {
       FROM test_attempts ta
       JOIN users u ON ta.student_id = u.id
       JOIN tests t ON ta.test_id = t.id
-      WHERE ta.test_id = ? AND ta.status = 'completed'
+      WHERE ta.test_id = ? AND ta.status = 'complet'
       ORDER BY ta.score DESC
     `, [testId]);
 

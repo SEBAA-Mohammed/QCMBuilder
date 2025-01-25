@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, PlusCircle, Save, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, PlusCircle, Save, AlertTriangle, Loader2, Pencil } from "lucide-react";
 import { Question } from "@/types/QuestionAnswer";
 import { Moon, Sun, ArrowLeft, LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-context";
@@ -18,12 +18,13 @@ const EditTest: React.FC = () => {
   const { user, setUser } = useUser();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   if (!user) {
     navigate("/login");
   }
   if (user?.role !== "teacher") {
-    navigate("/studentDashboard");
+    navigate("/login");
   }
 
   const [testDetails, setTestDetails] = useState({
@@ -201,54 +202,82 @@ const EditTest: React.FC = () => {
   };
 
   // Save new question
-  const saveQuestion = async () => {
-    if (!validateQuestion()) return;
+  // Modify the save question method to handle both create and update
+const saveQuestion = async () => {
+  if (!validateQuestion()) return;
 
-    try {
-      const formData = new FormData();
-      formData.append("content", currentQuestion.content);
-      formData.append("type", currentQuestion.type);
-      formData.append("points", currentQuestion.points.toString());
+  try {
+    const formData = new FormData();
+    formData.append("content", currentQuestion.content);
+    formData.append("type", currentQuestion.type);
+    formData.append("points", currentQuestion.points.toString());
+    
+    // Determine if it's an update or create
+    const isUpdate = !!currentQuestion.id;
+    
+    if (!isUpdate) {
+      // For new question, set order number
       formData.append("order_num", (questions.length + 1).toString());
-      formData.append("answers", JSON.stringify(currentQuestion.answers));
-
-      if (currentQuestion.photo_path) {
-        const response = await fetch(currentQuestion.photo_path);
-        const blob = await response.blob();
-        formData.append("photo", blob, "question-image.jpg");
-      }
-
-      const response = await fetch(
-        `http://localhost:5000/api/tests/${testId}/questions`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to save question");
-
-      const data = await response.json();
-      setQuestions((prev) => [...prev, data]);
-      setCurrentQuestion({
-        content: "",
-        type: "one-correct-choice",
-        points: 1,
-        photo_path: null,
-        answers: [
-          { content: "", is_correct: false },
-          { content: "", is_correct: false },
-        ],
-      });
-      setFileInputKey((prev) => prev + 1);
-      setQuestionValidationErrors([]);
-    } catch (error) {
-      console.error("Error saving question:", error);
-      setQuestionValidationErrors([
-        "Failed to save question. Please try again.",
-      ]);
     }
-  };
+    
+    formData.append("answers", JSON.stringify(currentQuestion.answers));
+
+    if (currentQuestion.photo_path) {
+      // Handle photo upload similar to create logic
+      const response = await fetch(currentQuestion.photo_path);
+      const blob = await response.blob();
+      formData.append("photo", blob, "question-image.jpg");
+    }
+
+    // Determine endpoint based on create or update
+    const endpoint = isUpdate 
+      ? `http://localhost:5000/api/tests/${testId}/questions/edit/${currentQuestion.id}`
+      : `http://localhost:5000/api/tests/${testId}/questions`;
+
+    const response = await fetch(endpoint, {
+      method: isUpdate ? "PUT" : "POST",
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error("Failed to save question");
+
+    const data = await response.json();
+
+    // Update questions list
+    if (isUpdate) {
+      // Replace the updated question in the list
+      setQuestions(prev => 
+        prev.map(q => q.id === currentQuestion.id ? data : q)
+      );
+    } else {
+      // Add new question
+      setQuestions((prev) => [...prev, data]);
+    }
+
+    // Reset form
+    setCurrentQuestion({
+      content: "",
+      type: "one-correct-choice",
+      points: 1,
+      photo_path: null,
+      answers: [
+        { content: "", is_correct: false },
+        { content: "", is_correct: false },
+      ],
+    });
+    setFileInputKey((prev) => prev + 1);
+    setQuestionValidationErrors([]);
+    
+    // Clear editing state
+    setEditingQuestion(null);
+  } catch (error) {
+    console.error("Error saving question:", error);
+    setQuestionValidationErrors([
+      "Failed to save question. Please try again.",
+    ]);
+  }
+};
+
 
   // Delete question
   const deleteQuestion = async (questionId: number, orderNum: number) => {
@@ -319,6 +348,21 @@ const EditTest: React.FC = () => {
       </div>
     );
   }
+
+  const editQuestion = async (question: Question) => {
+    // Set the current question to the one being edited
+    setCurrentQuestion({
+      content: question.content,
+      type: question.type,
+      points: question.points,
+      photo_path: question.photo_path,
+      answers: question.answers,
+      id: question.id, // Add id for backend update
+    });
+    
+    // Optional: Scroll to the question form
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -465,25 +509,34 @@ const EditTest: React.FC = () => {
 
       {/* Question List */}
       <div className="space-y-4 mb-6">
-        {questions.map((question, index) => (
-          <Card key={question.id}>
-            <CardContent className="flex justify-between items-center p-4">
-              <div className="flex items-center gap-4">
-                <div>
-                  <span className="font-bold mr-2">Q{index + 1}:</span>
-                  {question.content}
-                </div>
-              </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => deleteQuestion(question.id, question.order_num)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+      {questions.map((question, index) => (
+  <Card key={question.id}>
+    <CardContent className="flex justify-between items-center p-4">
+      <div className="flex items-center gap-4">
+        <div>
+          <span className="font-bold mr-2">Q{index + 1}:</span>
+          {question.content}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => editQuestion(question)}
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => deleteQuestion(question.id, question.order_num)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+))}
       </div>
 
       {/* Add New Question */}
